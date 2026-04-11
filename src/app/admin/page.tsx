@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, TrendingUp, Plus, CheckCircle2, XCircle,
-  Clock, Trash2, LogOut, ShieldCheck, Trophy,
+  Clock, Trash2, LogOut, ShieldCheck, Trophy, Pencil, X,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -70,6 +70,9 @@ export default function AdminPage() {
   const [betSuccess, setBetSuccess] = useState("");
   const [betCreating, setBetCreating] = useState(false);
   const [focused, setFocused] = useState<string>("");
+  const [editingBet, setEditingBet] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ sport: "", description: "", odds: "", unit: "" });
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -144,6 +147,36 @@ export default function AdminPage() {
       body: JSON.stringify({ result }),
     });
     if (res.ok) setBets((prev) => prev.map((b) => (b.id === id ? { ...b, status: result } : b)));
+  }
+
+  function startEdit(bet: AdminBet) {
+    setEditingBet(bet.id);
+    setEditForm({ sport: bet.sport, description: bet.description, odds: String(bet.odds), unit: String(bet.unit) });
+  }
+
+  async function handleEditBet(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !editingBet) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/bets/${editingBet}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          sport: editForm.sport,
+          description: editForm.description,
+          odds: parseFloat(editForm.odds),
+          unit: parseFloat(editForm.unit),
+        }),
+      });
+      if (res.ok) {
+        setBets((prev) => prev.map((b) => b.id === editingBet
+          ? { ...b, sport: editForm.sport, description: editForm.description, odds: parseFloat(editForm.odds), unit: parseFloat(editForm.unit) }
+          : b
+        ));
+        setEditingBet(null);
+      }
+    } finally { setEditSaving(false); }
   }
 
   async function handleDeleteBet(id: string) {
@@ -323,46 +356,107 @@ export default function AdminPage() {
             ) : (
               <div className="space-y-3">
                 {bets.map((bet) => (
-                  <div key={bet.id} className="bg-white rounded-xl border border-[#E5E7EB] p-4"
+                  <div key={bet.id} className="bg-white rounded-xl border border-[#E5E7EB] overflow-hidden"
                     style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-xs font-bold px-2 py-0.5 rounded"
-                            style={{ color: "#2563EB", background: "#EFF6FF" }}>{bet.sport}</span>
-                          {bet.status === "PENDING" && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ color: "#D97706", background: "#FFFBEB" }}><Clock size={10} /> En attente</span>}
-                          {bet.status === "WON" && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ color: "#16A34A", background: "#F0FDF4" }}><Trophy size={10} /> Gagnant</span>}
-                          {bet.status === "LOST" && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ color: "#DC2626", background: "#FEF2F2" }}><XCircle size={10} /> Perdant</span>}
+                    {/* Mode édition */}
+                    {editingBet === bet.id ? (
+                      <form onSubmit={handleEditBet} className="p-4 space-y-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-[#111827]">Modifier le pari</span>
+                          <button type="button" onClick={() => setEditingBet(null)}
+                            className="text-[#9CA3AF] hover:text-[#6B7280]"><X size={16} /></button>
                         </div>
-                        <p className="text-[#111827] text-sm font-medium">{bet.description}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-[#6B7280]">@{bet.odds}</span>
-                          <span className="text-xs text-[#6B7280]">{bet.unit}U</span>
-                          <span className="text-xs" style={{ color: "#9CA3AF" }}>{bet.followers}/{bet.totalUsers} suivis</span>
-                          <span className="text-xs" style={{ color: "#9CA3AF" }}>{new Date(bet.createdAt).toLocaleDateString("fr-FR")}</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        {bet.status === "PENDING" && (
-                          <div className="flex gap-1.5">
-                            <button onClick={() => handleSetResult(bet.id, "WON")}
-                              className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg"
-                              style={{ color: "#16A34A", background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
-                              <CheckCircle2 size={11} /> Gagné
-                            </button>
-                            <button onClick={() => handleSetResult(bet.id, "LOST")}
-                              className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg"
-                              style={{ color: "#DC2626", background: "#FEF2F2", border: "1px solid #FECACA" }}>
-                              <XCircle size={11} /> Perdu
-                            </button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-1">Sport</label>
+                            <input value={editForm.sport} onChange={(e) => setEditForm((p) => ({ ...p, sport: e.target.value }))}
+                              required style={inputStyle(focused === `edit-sport-${bet.id}`) as React.CSSProperties}
+                              onFocus={() => setFocused(`edit-sport-${bet.id}`)} onBlur={() => setFocused("")} />
                           </div>
-                        )}
-                        <button onClick={() => handleDeleteBet(bet.id)}
-                          className="text-[#9CA3AF] hover:text-red-500 transition-colors p-1" title="Supprimer">
-                          <Trash2 size={14} />
-                        </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-1">Cote</label>
+                              <input type="number" step="0.01" min="1.01" value={editForm.odds}
+                                onChange={(e) => setEditForm((p) => ({ ...p, odds: e.target.value }))} required
+                                style={inputStyle(focused === `edit-odds-${bet.id}`) as React.CSSProperties}
+                                onFocus={() => setFocused(`edit-odds-${bet.id}`)} onBlur={() => setFocused("")} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-1">Unité</label>
+                              <input type="number" step="0.5" min="0.5" value={editForm.unit}
+                                onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))} required
+                                style={inputStyle(focused === `edit-unit-${bet.id}`) as React.CSSProperties}
+                                onFocus={() => setFocused(`edit-unit-${bet.id}`)} onBlur={() => setFocused("")} />
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-1">Description</label>
+                          <input value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                            required style={inputStyle(focused === `edit-desc-${bet.id}`) as React.CSSProperties}
+                            onFocus={() => setFocused(`edit-desc-${bet.id}`)} onBlur={() => setFocused("")} />
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={editSaving}
+                            className="text-white text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-50"
+                            style={{ background: editSaving ? "#93C5FD" : "#2563EB" }}>
+                            {editSaving ? "Enregistrement…" : "Enregistrer"}
+                          </button>
+                          <button type="button" onClick={() => setEditingBet(null)}
+                            className="text-xs font-semibold px-4 py-2 rounded-lg"
+                            style={{ color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                            Annuler
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-xs font-bold px-2 py-0.5 rounded"
+                                style={{ color: "#2563EB", background: "#EFF6FF" }}>{bet.sport}</span>
+                              {bet.status === "PENDING" && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ color: "#D97706", background: "#FFFBEB" }}><Clock size={10} /> En attente</span>}
+                              {bet.status === "WON" && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ color: "#16A34A", background: "#F0FDF4" }}><Trophy size={10} /> Gagnant</span>}
+                              {bet.status === "LOST" && <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ color: "#DC2626", background: "#FEF2F2" }}><XCircle size={10} /> Perdant</span>}
+                            </div>
+                            <p className="text-[#111827] text-sm font-medium">{bet.description}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-[#6B7280]">@{bet.odds}</span>
+                              <span className="text-xs text-[#6B7280]">{bet.unit}U</span>
+                              <span className="text-xs" style={{ color: "#9CA3AF" }}>{bet.followers}/{bet.totalUsers} suivis</span>
+                              <span className="text-xs" style={{ color: "#9CA3AF" }}>{new Date(bet.createdAt).toLocaleDateString("fr-FR")}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            {bet.status === "PENDING" && (
+                              <div className="flex gap-1.5">
+                                <button onClick={() => handleSetResult(bet.id, "WON")}
+                                  className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg"
+                                  style={{ color: "#16A34A", background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+                                  <CheckCircle2 size={11} /> Gagné
+                                </button>
+                                <button onClick={() => handleSetResult(bet.id, "LOST")}
+                                  className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg"
+                                  style={{ color: "#DC2626", background: "#FEF2F2", border: "1px solid #FECACA" }}>
+                                  <XCircle size={11} /> Perdu
+                                </button>
+                              </div>
+                            )}
+                            <div className="flex gap-1">
+                              <button onClick={() => startEdit(bet)}
+                                className="text-[#9CA3AF] hover:text-[#2563EB] transition-colors p-1" title="Modifier">
+                                <Pencil size={14} />
+                              </button>
+                              <button onClick={() => handleDeleteBet(bet.id)}
+                                className="text-[#9CA3AF] hover:text-red-500 transition-colors p-1" title="Supprimer">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
