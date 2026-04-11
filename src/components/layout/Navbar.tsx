@@ -2,15 +2,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Zap, LogIn, LogOut, LayoutDashboard, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { Menu, X, LogIn, LogOut, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const links = [
+const navLinks = [
   { href: "/", label: "Accueil" },
-  { href: "/about", label: "À propos" },
-  { href: "/results", label: "Résultats" },
-  { href: "/vip", label: "VIP" },
-  { href: "/contact", label: "Contact" },
+  { href: "/stats-public", label: "Stats public" },
+  { href: "/stats-vip", label: "Stats VIP" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 export default function Navbar() {
@@ -21,9 +21,9 @@ export default function Navbar() {
   const { user, logout, loading } = useAuth();
 
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", fn, { passive: true });
-    return () => window.removeEventListener("scroll", fn);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => setOpen(false), [pathname]);
@@ -39,148 +39,169 @@ export default function Navbar() {
 
   return (
     <>
-      <nav
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-          scrolled ? "bg-[#080808]/95 backdrop-blur-xl border-b border-[#1F1F1F]" : "bg-transparent"
-        }`}
-      >
-        <div className="w-full max-w-[1400px] mx-auto px-6 lg:px-10 flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 bg-[#FF5C00] rounded flex items-center justify-center transition-all group-hover:scale-105 group-hover:rotate-3">
-              <Zap size={16} className="text-white" fill="white" />
-            </div>
-            <span
-              className="font-display text-2xl text-white tracking-widest uppercase"
-              style={{ fontFamily: "'Bebas Neue',Impact,sans-serif" }}
-            >
-              Progno<span className="text-[#FF5C00]">Beast</span>
-            </span>
-          </Link>
-
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-8">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`text-xs font-semibold tracking-[0.15em] uppercase transition-colors duration-150 ${
-                  pathname === l.href ? "text-[#FF5C00]" : "text-[#6B6B6B] hover:text-white"
-                }`}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Desktop auth buttons */}
-          <div className="hidden md:flex items-center gap-3">
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-[#FF5C00] border-t-transparent rounded-full animate-spin" />
-            ) : user ? (
-              <>
-                <Link
-                  href={dashboardHref}
-                  className={`flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors px-4 py-2 rounded-lg border ${
-                    pathname.startsWith(dashboardHref)
-                      ? "border-[#FF5C00]/50 text-[#FF5C00]"
-                      : "border-[#2A2A2A] text-[#6B6B6B] hover:text-white hover:border-[#444]"
-                  }`}
-                >
-                  <DashboardIcon size={13} />
-                  {dashboardLabel}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-[#6B6B6B] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[#111]"
-                >
-                  <LogOut size={13} />
-                  Déco
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-[#6B6B6B] hover:text-white transition-colors border border-[#2A2A2A] hover:border-[#444] px-4 py-2 rounded-lg"
-                >
-                  <LogIn size={13} />
-                  Connexion
-                </Link>
-                <Link
-                  href="/register"
-                  className="btn-shimmer text-white text-xs font-bold tracking-[0.15em] uppercase px-5 py-2.5 rounded transition-transform hover:scale-105 active:scale-95"
-                >
-                  Créer un compte
-                </Link>
-              </>
-            )}
-          </div>
-
-          <button
-            onClick={() => setOpen(!open)}
-            className="md:hidden text-[#6B6B6B] hover:text-white transition-colors"
+      {/* Barre d'annonce */}
+      <div style={{
+        background: "#2563EB",
+        padding: "10px 1rem",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+      }}>
+        <span style={{ color: "white", fontSize: "13px", fontWeight: 500 }}>
+          Pour recevoir les pronostics rejoins nous sur{" "}
+          <a
+            href="https://t.me/prognobeastfree"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "white", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: "2px" }}
           >
-            {open ? <X size={22} /> : <Menu size={22} />}
-          </button>
+            Telegram →
+          </a>
+        </span>
+      </div>
+
+      {/* Navbar principale */}
+      <nav className={`sticky top-0 left-0 right-0 z-50 bg-white transition-all duration-200 ${
+        scrolled ? "shadow-sm border-b border-[#E5E7EB]" : "border-b border-[#F3F4F6]"
+      }`}>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+
+            {/* Logo + Nav gauche */}
+            <div className="flex items-center gap-8">
+              <Link href="/" className="flex items-center gap-2 group">
+                <Image
+                  src="/images/logo.png"
+                  alt="PrognoBeast"
+                  width={40}
+                  height={40}
+                  className="rounded-lg transition-transform group-hover:scale-105"
+                  style={{ objectFit: "contain" }}
+                />
+                <span className="text-xl tracking-widest text-[#111827] uppercase"
+                  style={{ fontFamily: "'Bebas Neue', Impact, sans-serif" }}>
+                  Progno<span className="text-[#2563EB]">Beast</span>
+                </span>
+              </Link>
+
+              <div className="hidden md:flex items-center gap-7">
+                {navLinks.map((link) => (
+                  <Link key={link.href} href={link.href}
+                    style={{ fontSize: "15px", fontWeight: 500 }}
+                    className={`transition-colors duration-150 ${
+                      pathname === link.href ? "text-[#2563EB]" : "text-[#6B7280] hover:text-[#111827]"
+                    }`}>
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Auth buttons desktop */}
+            <div className="hidden md:flex items-center gap-3">
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />
+              ) : user ? (
+                <>
+                  <Link href={dashboardHref}
+                    className={`flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg border transition-colors ${
+                      pathname.startsWith(dashboardHref)
+                        ? "border-[#2563EB] text-[#2563EB] bg-[#EFF6FF]"
+                        : "border-[#E5E7EB] text-[#6B7280] hover:text-[#111827] hover:border-[#D1D5DB]"
+                    }`}>
+                    <DashboardIcon size={14} />
+                    {dashboardLabel}
+                  </Link>
+                  <button onClick={handleLogout}
+                    className="flex items-center gap-1.5 text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors px-3 py-2">
+                    <LogOut size={14} />
+                    Déconnexion
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login"
+                    className="flex items-center gap-1.5 text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors border border-[#E5E7EB] hover:border-[#D1D5DB] px-4 py-2 rounded-lg">
+                    <LogIn size={14} />
+                    Connexion
+                  </Link>
+                  <Link href="/register"
+                    className="text-sm font-semibold text-white px-4 py-2 rounded-lg transition-colors"
+                    style={{ background: "#2563EB" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#1D4ED8")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#2563EB")}>
+                    Créer un compte
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Mobile burger */}
+            <button onClick={() => setOpen(!open)}
+              className="md:hidden text-[#6B7280] hover:text-[#111827] transition-colors p-1" aria-label="Menu">
+              {open ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile overlay */}
-      <div
-        className={`fixed inset-0 z-40 bg-[#080808]/98 backdrop-blur-xl flex flex-col justify-center items-center gap-6 transition-all duration-300 ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        {links.map((l, i) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`font-display text-6xl tracking-widest uppercase transition-colors ${
-              pathname === l.href ? "text-[#FF5C00]" : "text-white hover:text-[#FF5C00]"
-            }`}
-            style={{
-              fontFamily: "'Bebas Neue',Impact,sans-serif",
-              animationDelay: `${i * 0.05}s`,
-            }}
-          >
-            {l.label}
+      {/* Mobile menu overlay */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 40,
+        background: "white",
+        display: "flex", flexDirection: "column",
+        paddingTop: "5.5rem", paddingLeft: "1.75rem", paddingRight: "1.75rem",
+        transition: "opacity 0.25s ease",
+        opacity: open ? 1 : 0,
+        pointerEvents: open ? "auto" : "none",
+      }}>
+        {navLinks.map((link) => (
+          <Link key={link.href} href={link.href} style={{
+            fontSize: "1.6rem", fontWeight: 600,
+            paddingTop: "0.85rem", paddingBottom: "0.85rem",
+            borderBottom: "1px solid #F3F4F6",
+            color: pathname === link.href ? "#2563EB" : "#111827",
+            textDecoration: "none", display: "block",
+          }}>
+            {link.label}
           </Link>
         ))}
-
-        {user ? (
-          <>
-            <Link
-              href={dashboardHref}
-              className="font-display text-4xl tracking-widest uppercase text-[#FF5C00] hover:opacity-80"
-              style={{ fontFamily: "'Bebas Neue',Impact,sans-serif" }}
-            >
-              {dashboardLabel}
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="mt-2 text-sm font-semibold text-[#6B6B6B] hover:text-white tracking-widest uppercase transition-colors"
-            >
-              Déconnexion
-            </button>
-          </>
-        ) : (
-          <>
-            <Link
-              href="/login"
-              className="font-display text-4xl tracking-widest uppercase text-white hover:text-[#FF5C00] transition-colors"
-              style={{ fontFamily: "'Bebas Neue',Impact,sans-serif" }}
-            >
-              Connexion
-            </Link>
-            <Link
-              href="/register"
-              className="mt-2 btn-shimmer text-white text-sm font-bold tracking-widest uppercase px-8 py-4 rounded"
-            >
-              Créer un compte
-            </Link>
-          </>
-        )}
+        <div style={{ paddingTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {user ? (
+            <>
+              <Link href={dashboardHref} style={{
+                fontSize: "1rem", fontWeight: 600, color: "#2563EB",
+                display: "flex", alignItems: "center", gap: "0.5rem",
+              }}>
+                <DashboardIcon size={18} /> {dashboardLabel}
+              </Link>
+              <button onClick={handleLogout} style={{
+                fontSize: "0.95rem", fontWeight: 500, color: "#6B7280",
+                display: "flex", alignItems: "center", gap: "0.5rem",
+                background: "none", border: "none", cursor: "pointer", padding: 0,
+              }}>
+                <LogOut size={16} /> Déconnexion
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" style={{
+                fontSize: "1rem", fontWeight: 600, color: "#111827",
+                display: "flex", alignItems: "center", gap: "0.5rem",
+              }}>
+                <LogIn size={18} /> Connexion
+              </Link>
+              <Link href="/register" style={{
+                fontSize: "0.95rem", fontWeight: 600, color: "white",
+                background: "#2563EB", padding: "0.75rem 1.25rem",
+                borderRadius: "0.5rem", textAlign: "center", textDecoration: "none",
+              }}>
+                Créer un compte
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </>
   );

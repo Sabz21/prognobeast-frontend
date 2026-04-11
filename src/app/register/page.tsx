@@ -1,7 +1,8 @@
 "use client";
 import { useState, FormEvent } from "react";
 import Link from "next/link";
-import { Zap, Eye, EyeOff, UserPlus, CheckCircle, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { Eye, EyeOff, UserPlus, CheckCircle, AlertCircle } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -21,7 +22,6 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
@@ -39,155 +39,115 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 pt-16 pb-10">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#FF5C00]/5 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 py-16" style={{ background: "#F9FAFB" }}>
+      <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-[#FF5C00] rounded-xl flex items-center justify-center mb-4">
-            <Zap size={22} className="text-white" fill="white" />
-          </div>
-          <h1
-            className="text-4xl font-display text-white tracking-widest uppercase"
-            style={{ fontFamily: "'Bebas Neue',Impact,sans-serif" }}
-          >
-            Progno<span className="text-[#FF5C00]">Beast</span>
+          <Image src="/images/logo.png" alt="PrognoBeast" width={56} height={56}
+            className="rounded-xl mb-3" style={{ objectFit: "contain" }} />
+          <h1 className="text-3xl tracking-widest text-[#111827] uppercase"
+            style={{ fontFamily: "'Bebas Neue', Impact, sans-serif" }}>
+            Progno<span style={{ color: "#2563EB" }}>Beast</span>
           </h1>
-          <p className="text-[#6B6B6B] text-sm mt-1 tracking-wide">Accès membres VIP</p>
+          <p style={{ color: "#6B7280", fontSize: "14px", marginTop: "4px" }}>Accès membres VIP</p>
         </div>
 
-        <div className="glass rounded-2xl p-8 border border-[#1F1F1F]">
+        <div className="bg-white rounded-2xl p-8 border border-[#E5E7EB]"
+          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06)" }}>
+
           {success ? (
             <div className="text-center py-4">
-              <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-3">Demande envoyée !</h2>
-              <p className="text-[#6B6B6B] text-sm leading-relaxed mb-6">
+              <CheckCircle size={48} className="mx-auto mb-4" style={{ color: "#16A34A" }} />
+              <h2 className="text-xl font-bold text-[#111827] mb-3">Demande envoyée !</h2>
+              <p className="text-[#6B7280] text-sm leading-relaxed mb-6">
                 Votre compte a été créé. L&apos;administrateur va vérifier votre abonnement VIP et activer votre accès très prochainement.
               </p>
-              <Link
-                href="/login"
-                className="inline-block btn-shimmer text-white font-bold tracking-[0.1em] uppercase text-sm px-6 py-3 rounded-lg"
-              >
+              <Link href="/login"
+                className="inline-block text-white font-semibold text-sm px-6 py-3 rounded-lg"
+                style={{ background: "#2563EB" }}>
                 Retour à la connexion
               </Link>
             </div>
           ) : (
             <>
-              <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                <UserPlus size={20} className="text-[#FF5C00]" />
+              <h2 className="text-xl font-bold text-[#111827] mb-2 flex items-center gap-2">
+                <UserPlus size={20} style={{ color: "#2563EB" }} />
                 Créer un compte
               </h2>
 
-              {/* Message important */}
-              <div className="mb-5 flex gap-2.5 p-3 rounded-lg bg-[#FF5C00]/10 border border-[#FF5C00]/20">
-                <AlertCircle size={16} className="text-[#FF5C00] shrink-0 mt-0.5" />
-                <p className="text-xs text-[#FF7A2E] leading-relaxed">
+              <div className="mb-5 flex gap-2.5 p-3 rounded-lg" style={{ background: "#EFF6FF", border: "1px solid #BFDBFE" }}>
+                <AlertCircle size={16} style={{ color: "#2563EB", flexShrink: 0, marginTop: "2px" }} />
+                <p className="text-xs leading-relaxed" style={{ color: "#1D4ED8" }}>
                   <strong>Important :</strong> utilisez l&apos;adresse email avec laquelle vous avez pris votre abonnement VIP. Votre accès sera activé après vérification.
                 </p>
               </div>
 
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626" }}>
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#6B6B6B] uppercase tracking-widest mb-2">
-                      Prénom
-                    </label>
-                    <input
-                      type="text"
-                      value={form.firstName}
-                      onChange={set("firstName")}
-                      placeholder="Jean"
-                      required
-                      className="w-full bg-[#111111] border border-[#2A2A2A] rounded-lg px-3 py-3 text-white placeholder-[#444] text-sm focus:outline-none focus:border-[#FF5C00] transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#6B6B6B] uppercase tracking-widest mb-2">
-                      Nom
-                    </label>
-                    <input
-                      type="text"
-                      value={form.lastName}
-                      onChange={set("lastName")}
-                      placeholder="Dupont"
-                      required
-                      className="w-full bg-[#111111] border border-[#2A2A2A] rounded-lg px-3 py-3 text-white placeholder-[#444] text-sm focus:outline-none focus:border-[#FF5C00] transition-colors"
-                    />
-                  </div>
+                  {[["firstName", "Prénom", "Jean"], ["lastName", "Nom", "Dupont"]].map(([field, label, placeholder]) => (
+                    <div key={field}>
+                      <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-2">{label}</label>
+                      <input type="text" value={form[field as keyof typeof form]} onChange={set(field)}
+                        placeholder={placeholder} required
+                        className="w-full rounded-lg px-3 py-3 text-sm text-[#111827] placeholder-[#9CA3AF] outline-none"
+                        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}
+                        onFocus={e => (e.currentTarget.style.borderColor = "#2563EB")}
+                        onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")} />
+                    </div>
+                  ))}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B6B6B] uppercase tracking-widest mb-2">
-                    Adresse email
-                  </label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={set("email")}
-                    placeholder="vous@exemple.com"
-                    required
-                    className="w-full bg-[#111111] border border-[#2A2A2A] rounded-lg px-4 py-3 text-white placeholder-[#444] text-sm focus:outline-none focus:border-[#FF5C00] transition-colors"
-                  />
+                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-2">Adresse email</label>
+                  <input type="email" value={form.email} onChange={set("email")}
+                    placeholder="vous@exemple.com" required
+                    className="w-full rounded-lg px-4 py-3 text-sm text-[#111827] placeholder-[#9CA3AF] outline-none"
+                    style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}
+                    onFocus={e => (e.currentTarget.style.borderColor = "#2563EB")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#6B6B6B] uppercase tracking-widest mb-2">
-                    Mot de passe
-                    <span className="ml-2 text-[#444] normal-case font-normal tracking-normal">
-                      (8 caractères min.)
-                    </span>
+                  <label className="block text-xs font-semibold text-[#6B7280] uppercase tracking-widest mb-2">
+                    Mot de passe <span className="text-[#9CA3AF] normal-case font-normal tracking-normal">(8 car. min.)</span>
                   </label>
                   <div className="relative">
-                    <input
-                      type={showPwd ? "text" : "password"}
-                      value={form.password}
-                      onChange={set("password")}
-                      placeholder="••••••••"
-                      required
-                      minLength={8}
-                      className="w-full bg-[#111111] border border-[#2A2A2A] rounded-lg px-4 py-3 pr-11 text-white placeholder-[#444] text-sm focus:outline-none focus:border-[#FF5C00] transition-colors"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPwd(!showPwd)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B6B] hover:text-white transition-colors"
-                    >
+                    <input type={showPwd ? "text" : "password"} value={form.password} onChange={set("password")}
+                      placeholder="••••••••" required minLength={8}
+                      className="w-full rounded-lg px-4 py-3 pr-11 text-sm text-[#111827] placeholder-[#9CA3AF] outline-none"
+                      style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}
+                      onFocus={e => (e.currentTarget.style.borderColor = "#2563EB")}
+                      onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")} />
+                    <button type="button" onClick={() => setShowPwd(!showPwd)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280] transition-colors">
                       {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full btn-shimmer text-white font-bold tracking-[0.1em] uppercase text-sm py-3.5 rounded-lg transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 mt-2"
-                >
+                <button type="submit" disabled={loading}
+                  className="w-full text-white font-semibold text-sm py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                  style={{ background: loading ? "#93C5FD" : "#2563EB" }}>
                   {loading ? "Création…" : "Créer mon compte"}
                 </button>
               </form>
 
-              <p className="text-center text-sm text-[#6B6B6B] mt-6">
+              <p className="text-center text-sm text-[#6B7280] mt-6">
                 Déjà un compte ?{" "}
-                <Link href="/login" className="text-[#FF5C00] hover:text-[#FF7A2E] font-semibold transition-colors">
-                  Se connecter
-                </Link>
+                <Link href="/login" className="font-semibold" style={{ color: "#2563EB" }}>Se connecter</Link>
               </p>
             </>
           )}
         </div>
 
-        <p className="text-center text-xs text-[#444] mt-6">
-          Retour à{" "}
-          <Link href="/" className="text-[#6B6B6B] hover:text-white transition-colors">
-            l&apos;accueil
-          </Link>
+        <p className="text-center text-xs text-[#9CA3AF] mt-6">
+          Retour à <Link href="/" className="text-[#6B7280] hover:text-[#111827] transition-colors">l&apos;accueil</Link>
         </p>
       </div>
     </div>

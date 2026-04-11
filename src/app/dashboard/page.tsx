@@ -3,18 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  LogOut,
-  Zap,
-  Trophy,
-  CalendarDays,
-  Target,
+  TrendingUp, TrendingDown, Minus, CheckCircle2, XCircle,
+  Clock, LogOut, Trophy, CalendarDays, Target,
 } from "lucide-react";
+import Image from "next/image";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -31,17 +23,8 @@ interface Bet {
   gainLoss: number | null;
 }
 
-interface Stats {
-  total: number;
-  count: number;
-}
-
-interface PeriodStats {
-  day: Stats;
-  week: Stats;
-  month: Stats;
-  all: Stats;
-}
+interface Stats { total: number; count: number; }
+interface PeriodStats { day: Stats; week: Stats; month: Stats; all: Stats; }
 
 function computeStats(bets: Bet[]): PeriodStats {
   const now = new Date();
@@ -66,27 +49,25 @@ function computeStats(bets: Bet[]): PeriodStats {
   };
 }
 
-function StatCard({ label, stats }: { label: string; stats: Stats }) {
-  const isPositive = stats.total > 0;
-  const isNegative = stats.total < 0;
-
+function StatCard({ label, stats, highlight }: { label: string; stats: Stats; highlight?: boolean }) {
+  const isPos = stats.total > 0;
+  const isNeg = stats.total < 0;
   return (
-    <div className="glass rounded-xl p-4 border border-[#1F1F1F] flex flex-col gap-2">
-      <span className="text-xs text-[#6B6B6B] font-semibold uppercase tracking-widest">{label}</span>
-      <div className="flex items-end gap-2">
-        <span
-          className={`text-2xl font-bold ${
-            isPositive ? "text-emerald-400" : isNegative ? "text-red-400" : "text-[#6B6B6B]"
-          }`}
-        >
-          {isPositive ? "+" : ""}
-          {stats.total}U
+    <div className="bg-white rounded-xl p-4 border flex flex-col gap-2"
+      style={{ borderColor: highlight ? "#BFDBFE" : "#E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+      <span className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1"
+        style={{ color: highlight ? "#2563EB" : "#6B7280" }}>
+        {highlight && <Trophy size={11} />}{label}
+      </span>
+      <div className="flex items-end gap-1.5">
+        <span className="text-2xl font-bold" style={{ color: isPos ? "#16A34A" : isNeg ? "#DC2626" : "#9CA3AF" }}>
+          {isPos ? "+" : ""}{stats.total}U
         </span>
-        {isPositive && <TrendingUp size={16} className="text-emerald-400 mb-1" />}
-        {isNegative && <TrendingDown size={16} className="text-red-400 mb-1" />}
-        {!isPositive && !isNegative && <Minus size={16} className="text-[#6B6B6B] mb-1" />}
+        {isPos && <TrendingUp size={16} style={{ color: "#16A34A", marginBottom: "4px" }} />}
+        {isNeg && <TrendingDown size={16} style={{ color: "#DC2626", marginBottom: "4px" }} />}
+        {!isPos && !isNeg && <Minus size={16} style={{ color: "#9CA3AF", marginBottom: "4px" }} />}
       </div>
-      <span className="text-xs text-[#444]">{stats.count} pari(s) joués</span>
+      <span className="text-xs" style={{ color: "#9CA3AF" }}>{stats.count} pari(s) joués</span>
     </div>
   );
 }
@@ -97,97 +78,66 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
   const isLost = bet.status === "LOST";
 
   return (
-    <div className="glass rounded-xl border border-[#1F1F1F] overflow-hidden">
+    <div className="bg-white rounded-xl border border-[#E5E7EB] overflow-hidden"
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
       <div className="p-4">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-bold text-[#FF5C00] uppercase tracking-widest bg-[#FF5C00]/10 px-2 py-0.5 rounded">
+              <span className="text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded"
+                style={{ color: "#2563EB", background: "#EFF6FF" }}>
                 {bet.sport}
               </span>
               {isPending && (
-                <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
-                  <Clock size={11} />
-                  En attente
+                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded"
+                  style={{ color: "#D97706", background: "#FFFBEB" }}>
+                  <Clock size={11} /> En attente
                 </span>
               )}
               {isWon && (
-                <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">
-                  <CheckCircle2 size={11} />
-                  Gagnant
+                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded"
+                  style={{ color: "#16A34A", background: "#F0FDF4" }}>
+                  <CheckCircle2 size={11} /> Gagnant
                 </span>
               )}
               {isLost && (
-                <span className="flex items-center gap-1 text-xs text-red-400 bg-red-400/10 px-2 py-0.5 rounded">
-                  <XCircle size={11} />
-                  Perdant
+                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded"
+                  style={{ color: "#DC2626", background: "#FEF2F2" }}>
+                  <XCircle size={11} /> Perdant
                 </span>
               )}
             </div>
-            <p className="text-white text-sm font-medium leading-snug">{bet.description}</p>
+            <p className="text-[#111827] text-sm font-medium leading-snug">{bet.description}</p>
           </div>
-
-          {/* Cote & Unité */}
           <div className="text-right shrink-0">
-            <div className="text-lg font-bold text-white">@{bet.odds}</div>
-            <div className="text-xs text-[#6B6B6B]">{bet.unit}U</div>
+            <div className="text-lg font-bold text-[#111827]">@{bet.odds}</div>
+            <div className="text-xs text-[#9CA3AF]">{bet.unit}U</div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#1F1F1F]">
-          <span className="text-xs text-[#444]">
-            {new Date(bet.createdAt).toLocaleDateString("fr-FR", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#F3F4F6]">
+          <span className="text-xs text-[#9CA3AF]">
+            {new Date(bet.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
           </span>
-
           <div className="flex items-center gap-3">
-            {/* Gain/Perte affiché si résultat connu et suivi */}
             {!isPending && bet.followed && bet.gainLoss !== null && (
-              <span
-                className={`text-sm font-bold ${
-                  bet.gainLoss > 0 ? "text-emerald-400" : "text-red-400"
-                }`}
-              >
-                {bet.gainLoss > 0 ? "+" : ""}
-                {bet.gainLoss}U
+              <span className="text-sm font-bold" style={{ color: bet.gainLoss > 0 ? "#16A34A" : "#DC2626" }}>
+                {bet.gainLoss > 0 ? "+" : ""}{bet.gainLoss}U
               </span>
             )}
-
-            {/* Toggle suivi */}
             {isPending ? (
-              <button
-                onClick={() => onToggleFollow(bet.id, !bet.followed)}
-                className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all ${
-                  bet.followed
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30"
-                    : "bg-[#1F1F1F] text-[#6B6B6B] border border-[#2A2A2A] hover:border-[#FF5C00]/50 hover:text-white"
-                }`}
-              >
-                {bet.followed ? (
-                  <>
-                    <CheckCircle2 size={12} />
-                    Suivi
-                  </>
-                ) : (
-                  <>
-                    <Target size={12} />
-                    Pas suivi
-                  </>
-                )}
+              <button onClick={() => onToggleFollow(bet.id, !bet.followed)}
+                className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide px-3 py-1.5 rounded-lg transition-colors"
+                style={bet.followed
+                  ? { background: "#F0FDF4", color: "#16A34A", border: "1px solid #BBF7D0" }
+                  : { background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                {bet.followed ? <><CheckCircle2 size={12} /> Suivi</> : <><Target size={12} /> Pas suivi</>}
               </button>
             ) : (
-              <span
-                className={`text-xs px-3 py-1.5 rounded-lg border ${
-                  bet.followed
-                    ? "border-emerald-500/20 text-emerald-400/60 bg-emerald-500/5"
-                    : "border-[#1F1F1F] text-[#444]"
-                }`}
-              >
+              <span className="text-xs px-3 py-1.5 rounded-lg"
+                style={bet.followed
+                  ? { color: "#16A34A", background: "#F0FDF4", border: "1px solid #BBF7D0" }
+                  : { color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
                 {bet.followed ? "Suivi" : "Non suivi"}
               </span>
             )}
@@ -206,63 +156,40 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<"all" | "pending" | "settled">("all");
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/login");
-    }
-    if (!authLoading && user?.role === "ADMIN") {
-      router.replace("/admin");
-    }
+    if (!authLoading && !user) router.replace("/login");
+    if (!authLoading && user?.role === "ADMIN") router.replace("/admin");
   }, [user, authLoading, router]);
 
   const fetchBets = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/api/bets`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API_URL}/api/bets`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setBets(data.data);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ } finally { setLoading(false); }
   }, [token]);
 
-  useEffect(() => {
-    if (token) fetchBets();
-  }, [token, fetchBets]);
+  useEffect(() => { if (token) fetchBets(); }, [token, fetchBets]);
 
   async function handleToggleFollow(betId: string, followed: boolean) {
     if (!token) return;
-    // Optimistic update
-    setBets((prev) =>
-      prev.map((b) => (b.id === betId ? { ...b, followed } : b))
-    );
+    setBets((prev) => prev.map((b) => (b.id === betId ? { ...b, followed } : b)));
     try {
       const res = await fetch(`${API_URL}/api/bets/${betId}/follow`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ followed }),
       });
-      if (!res.ok) {
-        // Revert on error
-        setBets((prev) => prev.map((b) => (b.id === betId ? { ...b, followed: !followed } : b)));
-      }
+      if (!res.ok) setBets((prev) => prev.map((b) => (b.id === betId ? { ...b, followed: !followed } : b)));
     } catch {
       setBets((prev) => prev.map((b) => (b.id === betId ? { ...b, followed: !followed } : b)));
     }
   }
 
-  function handleLogout() {
-    logout();
-    router.push("/");
-  }
-
   if (authLoading || (!user && !authLoading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#FF5C00] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F9FAFB" }}>
+        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#2563EB", borderTopColor: "transparent" }} />
       </div>
     );
   }
@@ -275,32 +202,21 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="min-h-screen pt-20 pb-12 px-4">
+    <div className="min-h-screen py-10 px-4" style={{ background: "#F9FAFB" }}>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-6 h-6 bg-[#FF5C00] rounded flex items-center justify-center">
-                <Zap size={12} className="text-white" fill="white" />
-              </div>
-              <span
-                className="text-lg font-display tracking-widest uppercase text-white"
-                style={{ fontFamily: "'Bebas Neue',Impact,sans-serif" }}
-              >
-                Espace VIP
-              </span>
+          <div className="flex items-center gap-3">
+            <Image src="/images/logo.png" alt="PrognoBeast" width={36} height={36}
+              className="rounded-lg" style={{ objectFit: "contain" }} />
+            <div>
+              <h1 className="text-lg font-bold text-[#111827]">Espace VIP</h1>
+              <p className="text-sm" style={{ color: "#6B7280" }}>Bonjour {user?.firstName} 👋</p>
             </div>
-            <p className="text-[#6B6B6B] text-sm">
-              Bonjour {user?.firstName} 👋
-            </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs text-[#6B6B6B] hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-[#111]"
-          >
-            <LogOut size={14} />
-            Déconnexion
+          <button onClick={() => { logout(); router.push("/"); }}
+            className="flex items-center gap-1.5 text-sm text-[#6B7280] hover:text-[#111827] transition-colors px-3 py-2 rounded-lg hover:bg-white">
+            <LogOut size={14} /> Déconnexion
           </button>
         </div>
 
@@ -309,54 +225,33 @@ export default function DashboardPage() {
           <StatCard label="Aujourd'hui" stats={stats.day} />
           <StatCard label="Cette semaine" stats={stats.week} />
           <StatCard label="Ce mois" stats={stats.month} />
-          <div className="glass rounded-xl p-4 border border-[#FF5C00]/20 flex flex-col gap-2">
-            <span className="text-xs text-[#FF5C00] font-semibold uppercase tracking-widest flex items-center gap-1">
-              <Trophy size={11} />
-              Total
-            </span>
-            <span
-              className={`text-2xl font-bold ${
-                stats.all.total > 0
-                  ? "text-emerald-400"
-                  : stats.all.total < 0
-                  ? "text-red-400"
-                  : "text-[#6B6B6B]"
-              }`}
-            >
-              {stats.all.total > 0 ? "+" : ""}
-              {stats.all.total}U
-            </span>
-            <span className="text-xs text-[#444]">{stats.all.count} pari(s)</span>
-          </div>
+          <StatCard label="Total" stats={stats.all} highlight />
         </div>
 
         {/* Filtres */}
         <div className="flex gap-2 mb-5">
           {(["all", "pending", "settled"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${
-                filter === f
-                  ? "bg-[#FF5C00] text-white"
-                  : "bg-[#111] text-[#6B6B6B] hover:text-white border border-[#1F1F1F]"
-              }`}
-            >
+            <button key={f} onClick={() => setFilter(f)}
+              className="text-xs font-semibold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors"
+              style={filter === f
+                ? { background: "#2563EB", color: "white" }
+                : { background: "white", color: "#6B7280", border: "1px solid #E5E7EB" }}>
               {f === "all" ? "Tous" : f === "pending" ? "En attente" : "Terminés"}
             </button>
           ))}
         </div>
 
-        {/* Liste des paris */}
+        {/* Paris */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-[#FF5C00] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: "#2563EB", borderTopColor: "transparent" }} />
           </div>
         ) : filteredBets.length === 0 ? (
           <div className="text-center py-16">
-            <CalendarDays size={40} className="text-[#2A2A2A] mx-auto mb-3" />
-            <p className="text-[#6B6B6B] text-sm">Aucun pari pour le moment.</p>
-            <p className="text-[#444] text-xs mt-1">Les prochains pronostics apparaîtront ici.</p>
+            <CalendarDays size={40} className="mx-auto mb-3" style={{ color: "#D1D5DB" }} />
+            <p className="text-[#6B7280] text-sm">Aucun pari pour le moment.</p>
+            <p className="text-xs mt-1" style={{ color: "#9CA3AF" }}>Les prochains pronostics apparaîtront ici.</p>
           </div>
         ) : (
           <div className="space-y-3">

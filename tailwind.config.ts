@@ -9,22 +9,62 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        orange: { DEFAULT: "#FF5C00", light: "#FF7A2E", dark: "#CC4A00" },
-        black:  { DEFAULT: "#080808" },
-        surface: { DEFAULT: "#111111", 2: "#181818" },
-        border:  { DEFAULT: "#1F1F1F", 2: "#2A2A2A" },
-        white:   { DEFAULT: "#F8F8F8" },
-        muted:   { DEFAULT: "#6B6B6B", 2: "#444444" },
+        // Fond principal
+        black: "#0A0A0A",
+        charcoal: "#111111",
+        surface: "#161616",
+        border: "#222222",
+        // Textes
+        white: "#F5F5F5",
+        muted: "#888888",
+        // Accents
+        red: {
+          DEFAULT: "#C41E3A",
+          dark: "#8B0000",
+          light: "#E8274A",
+        },
+        gold: {
+          DEFAULT: "#C9A84C",
+          light: "#E0C06A",
+          dark: "#A07830",
+        },
       },
       fontFamily: {
-        display: ['"Bebas Neue"', "Impact", "sans-serif"],
-        body:    ['"Inter"', "system-ui", "sans-serif"],
+        display: ["var(--font-bebas)", "Impact", "sans-serif"],
+        body: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
       },
-      screens: {
-        xs: "480px",
+      animation: {
+        "fade-up": "fadeUp 0.6s ease forwards",
+        "fade-in": "fadeIn 0.5s ease forwards",
+        "slide-in": "slideIn 0.5s ease forwards",
+        shimmer: "shimmer 2s infinite",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      keyframes: {
+        fadeUp: {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideIn: {
+          "0%": { opacity: "0", transform: "translateX(-16px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "noise": "url('/images/noise.svg')",
       },
     },
   },
   plugins: [],
 };
+
 export default config;

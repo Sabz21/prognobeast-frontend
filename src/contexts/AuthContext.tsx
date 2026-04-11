@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem(TOKEN_KEY, data.data.token);
     setToken(data.data.token);
-    setUser(data.data.user);
+    await fetchMe(data.data.token);
   }
 
   function logout() {
