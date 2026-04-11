@@ -160,33 +160,22 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
               </span>
             )}
 
-            {isPending ? (
-              <button onClick={() => onToggleFollow(bet.id, !bet.followed)} style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                fontSize: "12px", fontWeight: 700, padding: "7px 14px",
-                borderRadius: "999px", border: "none", cursor: "pointer",
-                transition: "all 0.15s",
-                background: bet.followed
-                  ? "linear-gradient(135deg, #2563EB, #1D4ED8)"
-                  : "#F3F4F6",
-                color: bet.followed ? "white" : "#6B7280",
-                boxShadow: bet.followed ? "0 2px 8px rgba(37,99,235,0.3)" : "none",
-              }}>
-                {bet.followed
-                  ? <><CheckCircle2 size={13} /> Suivi</>
-                  : <><Target size={13} /> Suivre</>
-                }
-              </button>
-            ) : (
-              <span style={{
-                fontSize: "12px", fontWeight: 600, padding: "5px 12px", borderRadius: "999px",
-                background: bet.followed ? "#EFF6FF" : "#F9FAFB",
-                color: bet.followed ? "#2563EB" : "#9CA3AF",
-                border: bet.followed ? "1px solid #BFDBFE" : "1px solid #E5E7EB",
-              }}>
-                {bet.followed ? "Suivi" : "Non suivi"}
-              </span>
-            )}
+            <button onClick={() => onToggleFollow(bet.id, !bet.followed)} style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              fontSize: "12px", fontWeight: 700, padding: "7px 14px",
+              borderRadius: "999px", border: "none", cursor: "pointer",
+              transition: "all 0.15s",
+              background: bet.followed
+                ? "linear-gradient(135deg, #2563EB, #1D4ED8)"
+                : "#F3F4F6",
+              color: bet.followed ? "white" : "#6B7280",
+              boxShadow: bet.followed ? "0 2px 8px rgba(37,99,235,0.3)" : "none",
+            }}>
+              {bet.followed
+                ? <><CheckCircle2 size={13} /> Suivi</>
+                : <><Target size={13} /> Suivre</>
+              }
+            </button>
           </div>
         </div>
       </div>
