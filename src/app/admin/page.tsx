@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, TrendingUp, Plus, CheckCircle2, XCircle,
   Clock, Trash2, LogOut, ShieldCheck, Trophy, Pencil, X,
+  Eye, ChevronLeft, ChevronRight, CalendarDays,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -31,6 +32,138 @@ interface AdminBet {
   followers: number;
 }
 
+// ── helpers partagés ─────────────────────────────────────────────────────────
+function toDateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function betGainLoss(bet: AdminBet): number | null {
+  if (bet.status === "WON") return parseFloat(((bet.odds - 1) * bet.unit).toFixed(2));
+  if (bet.status === "LOST") return parseFloat((-bet.unit).toFixed(2));
+  return null;
+}
+
+function previewDayStats(bets: AdminBet[], key: string) {
+  const dayBets = bets.filter(b => toDateKey(new Date(b.createdAt)) === key);
+  const hasBets = dayBets.length > 0;
+  const hasPending = dayBets.some(b => b.status === "PENDING");
+  const total = parseFloat(dayBets.filter(b => b.status !== "PENDING").reduce((acc, b) => acc + (betGainLoss(b) ?? 0), 0).toFixed(2));
+  return { total, hasBets, hasPending };
+}
+
+function PreviewStatCard({ label, total, count, isTotal }: { label: string; total: number; count: number; isTotal?: boolean }) {
+  const isPos = total > 0; const isNeg = total < 0;
+  const color = isPos ? "#16A34A" : isNeg ? "#DC2626" : "#6B7280";
+  return (
+    <div style={{
+      background: isTotal ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "white",
+      borderRadius: "16px", padding: "20px",
+      border: isTotal ? "none" : "1px solid #E5E7EB",
+      boxShadow: isTotal ? "0 4px 24px rgba(37,99,235,0.25)" : "0 1px 3px rgba(0,0,0,0.06)",
+      display: "flex", flexDirection: "column", gap: "8px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        {isTotal && <Trophy size={13} style={{ color: "rgba(255,255,255,0.8)" }} />}
+        <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: isTotal ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{label}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span style={{ fontSize: "26px", fontWeight: 800, lineHeight: 1, color: isTotal ? "white" : color }}>
+          {isPos ? "+" : ""}{total}U
+        </span>
+        {!isTotal && isPos && <TrendingUp size={18} style={{ color }} />}
+        {!isTotal && isNeg && <TrendingDown size={18} style={{ color: "#DC2626" }} />}
+      </div>
+      <span style={{ fontSize: "12px", color: isTotal ? "rgba(255,255,255,0.6)" : "#9CA3AF" }}>
+        {count} pari{count !== 1 ? "s" : ""}
+      </span>
+    </div>
+  );
+}
+
+function PreviewCalendar({ bets, selectedDay, onSelectDay }: { bets: AdminBet[]; selectedDay: string | null; onSelectDay: (k: string | null) => void }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const lastDay = new Date(viewYear, viewMonth + 1, 0);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  const days: (Date | null)[] = Array(startDow).fill(null);
+  for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(viewYear, viewMonth, d));
+  while (days.length % 7 !== 0) days.push(null);
+
+  const monthNames = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const todayKey = toDateKey(today);
+
+  function prevMonth() { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); } else setViewMonth(m => m - 1); }
+  function nextMonth() { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); } else setViewMonth(m => m + 1); }
+
+  return (
+    <div style={{ background: "white", borderRadius: "16px", border: "1px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "20px" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={prevMonth} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "6px", cursor: "pointer", display: "flex" }}>
+          <ChevronLeft size={16} style={{ color: "#6B7280" }} />
+        </button>
+        <div style={{ textAlign: "center" }}>
+          <span style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "20px", letterSpacing: "0.06em", color: "#111827" }}>
+            {monthNames[viewMonth]} {viewYear}
+          </span>
+          {selectedDay && (
+            <button onClick={() => onSelectDay(null)} style={{ display: "block", margin: "2px auto 0", fontSize: "11px", color: "#2563EB", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+              Voir tous les paris
+            </button>
+          )}
+        </div>
+        <button onClick={nextMonth} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "6px", cursor: "pointer", display: "flex" }}>
+          <ChevronRight size={16} style={{ color: "#6B7280" }} />
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "8px 12px 4px", gap: "2px" }}>
+        {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => (
+          <div key={d} style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 0" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "0 12px 12px", gap: "4px" }}>
+        {days.map((date, i) => {
+          if (!date) return <div key={i} />;
+          const key = toDateKey(date);
+          const { total, hasBets, hasPending } = previewDayStats(bets, key);
+          const isToday = key === todayKey;
+          const isSelected = key === selectedDay;
+          const isFuture = date > today;
+          const isPos = total > 0; const isNeg = total < 0;
+          return (
+            <button key={key} onClick={() => onSelectDay(isSelected ? null : key)}
+              disabled={isFuture && !hasBets}
+              style={{
+                borderRadius: "10px", border: "none", cursor: hasBets || !isFuture ? "pointer" : "default",
+                padding: "6px 2px", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", transition: "all 0.15s",
+                background: isSelected ? "linear-gradient(135deg, #2563EB, #1D4ED8)" : isToday ? "#EFF6FF" : "transparent",
+                boxShadow: isSelected ? "0 2px 8px rgba(37,99,235,0.3)" : "none",
+              }}>
+              <span style={{ fontSize: "13px", fontWeight: isToday || isSelected ? 800 : 500, color: isSelected ? "white" : isToday ? "#2563EB" : isFuture ? "#D1D5DB" : "#374151", lineHeight: 1 }}>
+                {date.getDate()}
+              </span>
+              {hasBets && (
+                hasPending && !isPos && !isNeg ? (
+                  <span style={{ fontSize: "9px", fontWeight: 700, color: isSelected ? "rgba(255,255,255,0.8)" : "#2563EB" }}>•</span>
+                ) : (isPos || isNeg) ? (
+                  <span style={{ fontSize: "9px", fontWeight: 800, color: isSelected ? "white" : isPos ? "#16A34A" : "#DC2626", background: isSelected ? "rgba(255,255,255,0.2)" : isPos ? "#F0FDF4" : "#FEF2F2", padding: "1px 4px", borderRadius: "4px" }}>
+                    {isPos ? "+" : ""}{total}U
+                  </span>
+                ) : (
+                  <span style={{ fontSize: "9px", color: isSelected ? "rgba(255,255,255,0.7)" : "#9CA3AF" }}>—</span>
+                )
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const inp: React.CSSProperties = {
   width: "100%", background: "#F9FAFB", border: "1px solid #E5E7EB",
   borderRadius: "10px", padding: "10px 12px", fontSize: "14px",
@@ -41,7 +174,8 @@ const inp: React.CSSProperties = {
 export default function AdminPage() {
   const { user, token, logout, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"users" | "bets">("users");
+  const [tab, setTab] = useState<"users" | "bets" | "preview">("users");
+  const [previewSelectedDay, setPreviewSelectedDay] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [bets, setBets] = useState<AdminBet[]>([]);
@@ -215,6 +349,7 @@ export default function AdminPage() {
           {[
             { key: "users", label: "Comptes", Icon: Users, badge: pendingUsers.length },
             { key: "bets", label: "Paris", Icon: TrendingUp, badge: 0 },
+            { key: "preview", label: "Aperçu VIP", Icon: Eye, badge: 0 },
           ].map(({ key, label, Icon, badge }) => (
             <button key={key} onClick={() => setTab(key as "users" | "bets")} style={{
               flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
@@ -542,6 +677,120 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* ══ APERÇU VIP ══ */}
+        {tab === "preview" && (() => {
+          const now = new Date();
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const startOfWeek = new Date(startOfDay);
+          startOfWeek.setDate(startOfDay.getDate() - (startOfDay.getDay() || 7) + 1);
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+          function calcPeriod(from: Date) {
+            const filtered = bets.filter(b => b.status !== "PENDING" && new Date(b.createdAt) >= from);
+            const total = parseFloat(filtered.reduce((acc, b) => acc + (betGainLoss(b) ?? 0), 0).toFixed(2));
+            return { total, count: filtered.length };
+          }
+
+          const statsDay = calcPeriod(startOfDay);
+          const statsWeek = calcPeriod(startOfWeek);
+          const statsMonth = calcPeriod(startOfMonth);
+          const statsAll = calcPeriod(new Date(0));
+
+          const displayBets = previewSelectedDay
+            ? bets.filter(b => toDateKey(new Date(b.createdAt)) === previewSelectedDay)
+            : bets;
+
+          const selStats = previewSelectedDay ? previewDayStats(bets, previewSelectedDay) : null;
+
+          return (
+            <div>
+              {/* Stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "24px" }}>
+                <PreviewStatCard label="Aujourd'hui" total={statsDay.total} count={statsDay.count} />
+                <PreviewStatCard label="Cette semaine" total={statsWeek.total} count={statsWeek.count} />
+                <PreviewStatCard label="Ce mois" total={statsMonth.total} count={statsMonth.count} />
+                <PreviewStatCard label="Total" total={statsAll.total} count={statsAll.count} isTotal />
+              </div>
+
+              {/* Calendrier */}
+              <PreviewCalendar bets={bets} selectedDay={previewSelectedDay} onSelectDay={setPreviewSelectedDay} />
+
+              {/* Bandeau jour sélectionné */}
+              {previewSelectedDay && selStats && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "white", borderRadius: "12px", padding: "12px 16px", border: "1px solid #BFDBFE", marginBottom: "16px", boxShadow: "0 2px 8px rgba(37,99,235,0.08)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <CalendarDays size={16} style={{ color: "#2563EB" }} />
+                    <span style={{ fontSize: "14px", fontWeight: 700, color: "#111827" }}>
+                      {new Date(previewSelectedDay + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {selStats.hasPending && <span style={{ fontSize: "12px", color: "#2563EB", fontWeight: 600 }}>En cours…</span>}
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: selStats.total > 0 ? "#16A34A" : selStats.total < 0 ? "#DC2626" : "#6B7280" }}>
+                      {selStats.total > 0 ? "+" : ""}{selStats.total}U
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Liste paris */}
+              {betsLoading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #2563EB", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                </div>
+              ) : displayBets.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "16px", border: "1px solid #E5E7EB" }}>
+                  <CalendarDays size={40} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
+                  <p style={{ fontSize: "15px", fontWeight: 600, color: "#374151" }}>
+                    {previewSelectedDay ? "Aucun pari ce jour-là" : "Aucun pari créé"}
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {displayBets.map(bet => {
+                    const gl = betGainLoss(bet);
+                    return (
+                      <div key={bet.id} style={{ background: "white", borderRadius: "14px", border: "1px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                        {bet.status === "WON" && <div style={{ height: "3px", background: "linear-gradient(90deg, #16A34A, #4ADE80)" }} />}
+                        {bet.status === "LOST" && <div style={{ height: "3px", background: "linear-gradient(90deg, #DC2626, #F87171)" }} />}
+                        {bet.status === "PENDING" && <div style={{ height: "3px", background: "linear-gradient(90deg, #2563EB, #60A5FA)" }} />}
+                        <div style={{ padding: "16px" }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 10px", borderRadius: "999px", background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE" }}>{bet.sport}</span>
+                                {bet.status === "PENDING" && <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "999px", background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE" }}><Clock size={10} /> En attente</span>}
+                                {bet.status === "WON" && <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "999px", background: "#F0FDF4", color: "#16A34A", border: "1px solid #BBF7D0" }}><CheckCircle2 size={10} /> Gagnant</span>}
+                                {bet.status === "LOST" && <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, padding: "3px 8px", borderRadius: "999px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}><XCircle size={10} /> Perdant</span>}
+                              </div>
+                              <p style={{ fontSize: "14px", fontWeight: 600, color: "#111827", lineHeight: 1.4 }}>{bet.description}</p>
+                            </div>
+                            <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "12px", padding: "8px 12px", textAlign: "center", flexShrink: 0 }}>
+                              <div style={{ fontSize: "18px", fontWeight: 800, color: "#111827", lineHeight: 1 }}>@{bet.odds}</div>
+                              <div style={{ fontSize: "11px", color: "#9CA3AF", marginTop: "2px" }}>{bet.unit}U</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "12px", borderTop: "1px solid #F3F4F6", flexWrap: "wrap", gap: "8px" }}>
+                            <span style={{ fontSize: "12px", color: "#9CA3AF" }}>
+                              {new Date(bet.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                              <span style={{ marginLeft: "8px", fontSize: "11px", color: "#BFDBFE" }}>{bet.followers}/{bet.totalUsers} suivis</span>
+                            </span>
+                            {gl !== null && (
+                              <span style={{ fontSize: "15px", fontWeight: 800, color: gl > 0 ? "#16A34A" : "#DC2626" }}>
+                                {gl > 0 ? "+" : ""}{gl}U
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
