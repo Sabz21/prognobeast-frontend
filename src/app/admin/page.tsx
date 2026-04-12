@@ -46,7 +46,8 @@ export default function AdminPage() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [bets, setBets] = useState<AdminBet[]>([]);
   const [betsLoading, setBetsLoading] = useState(true);
-  const [betForm, setBetForm] = useState({ sport: "", description: "", odds: "", unit: "1" });
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [betForm, setBetForm] = useState({ sport: "", description: "", odds: "", unit: "1", date: todayStr });
   const [betError, setBetError] = useState("");
   const [betSuccess, setBetSuccess] = useState("");
   const [betCreating, setBetCreating] = useState(false);
@@ -98,12 +99,12 @@ export default function AdminPage() {
       const res = await fetch(`${API_URL}/api/admin/bets`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ sport: betForm.sport, description: betForm.description, odds: parseFloat(betForm.odds), unit: parseFloat(betForm.unit) }),
+        body: JSON.stringify({ sport: betForm.sport, description: betForm.description, odds: parseFloat(betForm.odds), unit: parseFloat(betForm.unit), date: betForm.date }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setBetSuccess("Pari créé avec succès !");
-      setBetForm({ sport: "", description: "", odds: "", unit: "1" });
+      setBetForm({ sport: "", description: "", odds: "", unit: "1", date: todayStr });
       await fetchBets();
     } catch (err: unknown) {
       setBetError(err instanceof Error ? err.message : "Erreur lors de la création.");
@@ -385,6 +386,13 @@ export default function AdminPage() {
                     <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Description du pari</label>
                     <input value={betForm.description} onChange={e => setBetForm(p => ({ ...p, description: e.target.value }))}
                       placeholder="Ex : PSG Victoire — Ligue des Champions" required style={inp}
+                      onFocus={e => e.currentTarget.style.borderColor = "#2563EB"}
+                      onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Date du pari</label>
+                    <input type="date" value={betForm.date} onChange={e => setBetForm(p => ({ ...p, date: e.target.value }))}
+                      required style={inp}
                       onFocus={e => e.currentTarget.style.borderColor = "#2563EB"}
                       onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
                   </div>
