@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Users, TrendingUp, Plus, CheckCircle2, XCircle,
+  Users, TrendingUp, TrendingDown, Plus, CheckCircle2, XCircle,
   Clock, Trash2, LogOut, ShieldCheck, Trophy, Pencil, X,
   Eye, ChevronLeft, ChevronRight, CalendarDays,
 } from "lucide-react";
