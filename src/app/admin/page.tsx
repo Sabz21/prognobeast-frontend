@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, TrendingUp, TrendingDown, Plus, CheckCircle2, XCircle,
   Clock, Trash2, LogOut, ShieldCheck, Trophy, Pencil, X,
-  Eye, ChevronLeft, ChevronRight, CalendarDays,
+  Eye, ChevronLeft, ChevronRight, CalendarDays, Layers,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -28,6 +28,28 @@ interface AdminBet {
   unit: number;
   status: "PENDING" | "WON" | "LOST";
   createdAt: string;
+  totalUsers: number;
+  followers: number;
+}
+
+interface AdminMontanteStep {
+  id: string;
+  stepNumber: number;
+  sport: string;
+  description: string;
+  odds: number;
+  status: string;
+  createdAt: string;
+}
+
+interface AdminMontante {
+  id: string;
+  number: number;
+  startDate: string;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  steps: AdminMontanteStep[];
   totalUsers: number;
   followers: number;
 }
@@ -174,8 +196,16 @@ const inp: React.CSSProperties = {
 export default function AdminPage() {
   const { user, token, logout, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"users" | "bets" | "preview">("users");
+  const [tab, setTab] = useState<"users" | "bets" | "preview" | "montantes">("users");
   const [previewSelectedDay, setPreviewSelectedDay] = useState<string | null>(null);
+  const [montantes, setMontantes] = useState<AdminMontante[]>([]);
+  const [montantesLoading, setMontantesLoading] = useState(true);
+  const [montanteForm, setMontanteForm] = useState({ startDate: new Date().toISOString().split("T")[0], description: "" });
+  const [montanteError, setMontanteError] = useState("");
+  const [montanteCreating, setMontanteCreating] = useState(false);
+  const [expandedMontante, setExpandedMontante] = useState<string | null>(null);
+  const [stepForms, setStepForms] = useState<Record<string, { sport: string; description: string; odds: string }>>({});
+  const [stepSaving, setStepSaving] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [bets, setBets] = useState<AdminBet[]>([]);
@@ -212,7 +242,17 @@ export default function AdminPage() {
     } catch { /* silent */ } finally { setBetsLoading(false); }
   }, [token]);
 
-  useEffect(() => { if (token) { fetchUsers(); fetchBets(); } }, [token, fetchUsers, fetchBets]);
+  const fetchMontantes = useCallback(async () => {
+    if (!token) return;
+    setMontantesLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/montantes`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setMontantes(data.data);
+    } catch { /* silent */ } finally { setMontantesLoading(false); }
+  }, [token]);
+
+  useEffect(() => { if (token) { fetchUsers(); fetchBets(); fetchMontantes(); } }, [token, fetchUsers, fetchBets, fetchMontantes]);
 
   async function handleApprove(id: string) {
     if (!token) return;
@@ -285,6 +325,74 @@ export default function AdminPage() {
     if (res.ok) setBets(prev => prev.filter(b => b.id !== id));
   }
 
+  async function handleCreateMontante(e: React.FormEvent) {
+    e.preventDefault();
+    setMontanteError(""); setMontanteCreating(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/montantes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ startDate: montanteForm.startDate, description: montanteForm.description }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setMontanteForm({ startDate: todayStr, description: "" });
+      await fetchMontantes();
+    } catch (err: unknown) {
+      setMontanteError(err instanceof Error ? err.message : "Erreur lors de la création.");
+    } finally { setMontanteCreating(false); }
+  }
+
+  async function handleAddStep(montanteId: string) {
+    const form = stepForms[montanteId];
+    if (!form) return;
+    setStepSaving(montanteId);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/montantes/${montanteId}/steps`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ sport: form.sport, description: form.description, odds: parseFloat(form.odds) }),
+      });
+      if (res.ok) {
+        setStepForms(prev => ({ ...prev, [montanteId]: { sport: "", description: "", odds: "" } }));
+        await fetchMontantes();
+      }
+    } finally { setStepSaving(null); }
+  }
+
+  async function handleSetStepResult(montanteId: string, stepId: string, result: "WON" | "LOST") {
+    if (!token) return;
+    const res = await fetch(`${API_URL}/api/admin/montantes/${montanteId}/steps/${stepId}/result`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ result }),
+    });
+    if (res.ok) await fetchMontantes();
+  }
+
+  async function handleDeleteMontante(id: string) {
+    if (!token || !confirm("Supprimer cette montante et toutes ses étapes ?")) return;
+    const res = await fetch(`${API_URL}/api/admin/montantes/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setMontantes(prev => prev.filter(m => m.id !== id));
+  }
+
+  async function handleDeleteStep(montanteId: string, stepId: string) {
+    if (!token) return;
+    const res = await fetch(`${API_URL}/api/admin/montantes/${montanteId}/steps/${stepId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) await fetchMontantes();
+  }
+
+  async function handleToggleMontanteStatus(montante: AdminMontante) {
+    if (!token) return;
+    const newStatus = montante.status === "ACTIVE" ? "COMPLETED" : "ACTIVE";
+    const res = await fetch(`${API_URL}/api/admin/montantes/${montante.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) await fetchMontantes();
+  }
+
   if (authLoading || !user) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F9FAFB" }}>
@@ -349,9 +457,10 @@ export default function AdminPage() {
           {[
             { key: "users", label: "Comptes", Icon: Users, badge: pendingUsers.length },
             { key: "bets", label: "Paris", Icon: TrendingUp, badge: 0 },
+            { key: "montantes", label: "Montantes", Icon: Layers, badge: montantes.filter(m => m.status === "ACTIVE").length },
             { key: "preview", label: "Aperçu VIP", Icon: Eye, badge: 0 },
           ].map(({ key, label, Icon, badge }) => (
-            <button key={key} onClick={() => setTab(key as "users" | "bets")} style={{
+            <button key={key} onClick={() => setTab(key as "users" | "bets" | "montantes" | "preview")} style={{
               flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               padding: "10px 8px", borderRadius: "10px", border: "none", cursor: "pointer",
               fontSize: "13px", fontWeight: 700, transition: "all 0.15s",
@@ -673,6 +782,182 @@ export default function AdminPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ MONTANTES ══ */}
+        {tab === "montantes" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {/* Formulaire créer montante */}
+            <div style={{ background: "white", borderRadius: "16px", border: "1px solid #FDE68A", boxShadow: "0 4px 24px rgba(245,158,11,0.1)", overflow: "hidden" }}>
+              <div style={{ height: "3px", background: "linear-gradient(90deg, #F59E0B, #FBBF24)" }} />
+              <div style={{ padding: "20px" }}>
+                <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111827", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ width: "28px", height: "28px", borderRadius: "8px", background: "#FEF3C7", border: "1px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Plus size={15} style={{ color: "#D97706" }} />
+                  </span>
+                  Nouvelle montante
+                </h3>
+                {montanteError && <div style={{ marginBottom: "12px", padding: "10px 14px", borderRadius: "10px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", fontSize: "13px" }}>{montanteError}</div>}
+                <form onSubmit={handleCreateMontante} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Date de début</label>
+                      <input type="date" value={montanteForm.startDate}
+                        onChange={e => setMontanteForm(p => ({ ...p, startDate: e.target.value }))}
+                        required style={inp}
+                        onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                        onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>Description (optionnel)</label>
+                      <input value={montanteForm.description}
+                        onChange={e => setMontanteForm(p => ({ ...p, description: e.target.value }))}
+                        placeholder="Ex : Récupération après série de pertes…" style={inp}
+                        onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                        onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                    </div>
+                  </div>
+                  <button type="submit" disabled={montanteCreating} style={{
+                    alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "6px",
+                    fontSize: "13px", fontWeight: 700, padding: "10px 20px",
+                    borderRadius: "999px", border: "none", cursor: montanteCreating ? "not-allowed" : "pointer",
+                    background: montanteCreating ? "#FDE68A" : "linear-gradient(135deg, #F59E0B, #D97706)",
+                    color: "white", boxShadow: montanteCreating ? "none" : "0 2px 12px rgba(245,158,11,0.35)",
+                    transition: "all 0.15s",
+                  }}>
+                    <Plus size={15} /> {montanteCreating ? "Création…" : "Créer la montante"}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Liste montantes */}
+            {montantesLoading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #F59E0B", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              </div>
+            ) : montantes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "16px", border: "1px solid #E5E7EB" }}>
+                <Layers size={40} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
+                <p style={{ fontSize: "15px", fontWeight: 600, color: "#374151" }}>Aucune montante créée</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                {montantes.map(m => {
+                  const isExpanded = expandedMontante === m.id;
+                  const stepForm = stepForms[m.id] ?? { sport: "", description: "", odds: "" };
+                  return (
+                    <div key={m.id} style={{ background: "white", borderRadius: "16px", border: `1px solid ${m.status === "ACTIVE" ? "#FDE68A" : "#E5E7EB"}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                      <div style={{ height: "3px", background: m.status === "ACTIVE" ? "linear-gradient(90deg, #F59E0B, #FBBF24)" : "linear-gradient(90deg, #9CA3AF, #D1D5DB)" }} />
+                      <div style={{ padding: "16px" }}>
+                        {/* Header */}
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }}>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                              <span style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "20px", letterSpacing: "0.06em", color: "#111827" }}>
+                                Montante N°{m.number}
+                              </span>
+                              {m.status === "ACTIVE" && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px", background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A" }}>En cours</span>}
+                              {m.status === "COMPLETED" && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px", background: "#F3F4F6", color: "#6B7280", border: "1px solid #E5E7EB" }}>Terminée</span>}
+                            </div>
+                            <p style={{ fontSize: "12px", color: "#6B7280", marginTop: "4px" }}>
+                              Début : {new Date(m.startDate).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                            </p>
+                            {m.description && <p style={{ fontSize: "13px", color: "#374151", marginTop: "4px" }}>{m.description}</p>}
+                            <p style={{ fontSize: "12px", color: "#9CA3AF", marginTop: "4px" }}>
+                              {m.steps.length} étape{m.steps.length !== 1 ? "s" : ""} · {m.followers}/{m.totalUsers} participants
+                            </p>
+                          </div>
+                          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                            <button onClick={() => setExpandedMontante(isExpanded ? null : m.id)}
+                              style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: "4px" }}>
+                              <Pencil size={12} /> {isExpanded ? "Fermer" : "Gérer"}
+                            </button>
+                            <button onClick={() => handleToggleMontanteStatus(m)}
+                              style={{ background: m.status === "ACTIVE" ? "#F3F4F6" : "#FEF3C7", border: `1px solid ${m.status === "ACTIVE" ? "#E5E7EB" : "#FDE68A"}`, borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: m.status === "ACTIVE" ? "#6B7280" : "#D97706" }}>
+                              {m.status === "ACTIVE" ? "Terminer" : "Réactiver"}
+                            </button>
+                            <button onClick={() => handleDeleteMontante(m.id)}
+                              style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "8px", padding: "6px", cursor: "pointer", color: "#DC2626", display: "flex" }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Steps */}
+                        {m.steps.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: isExpanded ? "16px" : "0" }}>
+                            {m.steps.map(step => (
+                              <div key={step.id} style={{
+                                display: "flex", alignItems: "center", gap: "10px",
+                                background: step.status === "WON" ? "#F0FDF4" : step.status === "LOST" ? "#FEF2F2" : "#F9FAFB",
+                                border: `1px solid ${step.status === "WON" ? "#BBF7D0" : step.status === "LOST" ? "#FECACA" : "#E5E7EB"}`,
+                                borderRadius: "10px", padding: "10px 12px",
+                              }}>
+                                <div style={{ width: "22px", height: "22px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: step.status === "WON" ? "#16A34A" : step.status === "LOST" ? "#DC2626" : "#E5E7EB" }}>
+                                  {step.status === "WON" && <CheckCircle2 size={12} style={{ color: "white" }} />}
+                                  {step.status === "LOST" && <XCircle size={12} style={{ color: "white" }} />}
+                                  {step.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 800, color: "#6B7280" }}>{step.stepNumber}</span>}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{step.sport} @{step.odds}</div>
+                                  <div style={{ fontSize: "13px", color: "#374151" }}>{step.description}</div>
+                                </div>
+                                {step.status === "PENDING" && (
+                                  <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                                    <button onClick={() => handleSetStepResult(m.id, step.id, "WON")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #16A34A, #15803D)", color: "white" }}>✓ Gagné</button>
+                                    <button onClick={() => handleSetStepResult(m.id, step.id, "LOST")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "1px solid #FECACA", cursor: "pointer", background: "#FEF2F2", color: "#DC2626" }}>✗ Perdu</button>
+                                    <button onClick={() => handleDeleteStep(m.id, step.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", padding: "2px" }}><Trash2 size={12} /></button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Ajouter étape */}
+                        {isExpanded && (
+                          <div style={{ borderTop: m.steps.length > 0 ? "1px solid #F3F4F6" : "none", paddingTop: m.steps.length > 0 ? "16px" : "0" }}>
+                            <p style={{ fontSize: "12px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Ajouter une étape</p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: "8px" }}>
+                                <input placeholder="Sport" value={stepForm.sport}
+                                  onChange={e => setStepForms(p => ({ ...p, [m.id]: { ...stepForm, sport: e.target.value } }))}
+                                  style={{ ...inp, fontSize: "13px", padding: "8px 12px" }}
+                                  onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                  onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                <input placeholder="Cote (ex: 2.10)" type="number" step="0.01" min="1.01" value={stepForm.odds}
+                                  onChange={e => setStepForms(p => ({ ...p, [m.id]: { ...stepForm, odds: e.target.value } }))}
+                                  style={{ ...inp, fontSize: "13px", padding: "8px 12px" }}
+                                  onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                  onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                <button
+                                  onClick={() => handleAddStep(m.id)}
+                                  disabled={stepSaving === m.id || !stepForm.sport || !stepForm.description || !stepForm.odds}
+                                  style={{
+                                    fontSize: "12px", fontWeight: 700, borderRadius: "10px", border: "none", cursor: "pointer",
+                                    background: "linear-gradient(135deg, #F59E0B, #D97706)", color: "white",
+                                    display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+                                    opacity: (!stepForm.sport || !stepForm.description || !stepForm.odds) ? 0.5 : 1,
+                                  }}>
+                                  <Plus size={14} /> Ajouter
+                                </button>
+                              </div>
+                              <input placeholder="Description du pari (ex: PSG Victoire, Ligue des Champions)" value={stepForm.description}
+                                onChange={e => setStepForms(p => ({ ...p, [m.id]: { ...stepForm, description: e.target.value } }))}
+                                style={{ ...inp, fontSize: "13px", padding: "8px 12px" }}
+                                onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

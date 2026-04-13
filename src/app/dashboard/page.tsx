@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   TrendingUp, TrendingDown, CheckCircle2, XCircle,
   Clock, LogOut, Trophy, Target, CalendarDays, ChevronLeft, ChevronRight,
+  Layers, Users,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -23,6 +24,31 @@ interface Bet {
   gainLoss: number | null;
 }
 
+interface MontanteStep {
+  id: string;
+  stepNumber: number;
+  sport: string;
+  description: string;
+  odds: number;
+  status: "PENDING" | "WON" | "LOST";
+  createdAt: string;
+}
+
+interface Montante {
+  id: string;
+  number: number;
+  startDate: string;
+  description: string | null;
+  status: string;
+  following: boolean;
+  initialStake: number | null;
+  steps: MontanteStep[];
+  wonSteps: number;
+  lostSteps: number;
+  pendingSteps: number;
+  totalFollowers: number;
+}
+
 interface Stats { total: number; count: number; }
 interface PeriodStats { day: Stats; week: Stats; month: Stats; all: Stats; }
 
@@ -36,10 +62,10 @@ function computeStats(bets: Bet[]): PeriodStats {
   const startOfWeek = new Date(startOfDay);
   startOfWeek.setDate(startOfDay.getDate() - (startOfDay.getDay() || 7) + 1);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const calc = (from: Date, to?: Date) => {
+  const calc = (from: Date) => {
     const filtered = bets.filter(b => {
       const d = new Date(b.createdAt);
-      return b.followed && b.status !== "PENDING" && d >= from && (to ? d < to : true);
+      return b.followed && b.status !== "PENDING" && d >= from;
     });
     const total = filtered.reduce((acc, b) => acc + (b.gainLoss ?? 0), 0);
     return { total: parseFloat(total.toFixed(2)), count: filtered.length };
@@ -52,7 +78,6 @@ function computeStats(bets: Bet[]): PeriodStats {
   };
 }
 
-// Gain/perte pour un jour donné (key = "YYYY-MM-DD")
 function dayStats(bets: Bet[], key: string): { total: number; hasBets: boolean; hasPending: boolean } {
   const dayBets = bets.filter(b => toDateKey(new Date(b.createdAt)) === key);
   const hasBets = dayBets.length > 0;
@@ -101,8 +126,7 @@ function Calendar({
 
   const firstDay = new Date(viewYear, viewMonth, 1);
   const lastDay = new Date(viewYear, viewMonth + 1, 0);
-  // Start on Monday
-  let startDow = firstDay.getDay(); // 0=Sun
+  let startDow = firstDay.getDay();
   startDow = startDow === 0 ? 6 : startDow - 1;
   const days: (Date | null)[] = Array(startDow).fill(null);
   for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(viewYear, viewMonth, d));
@@ -122,7 +146,6 @@ function Calendar({
 
   return (
     <div style={{ background: "white", borderRadius: "16px", border: "1px solid #E5E7EB", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "20px" }}>
-      {/* Header */}
       <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <button onClick={prevMonth} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "6px", cursor: "pointer", display: "flex" }}>
           <ChevronLeft size={16} style={{ color: "#6B7280" }} />
@@ -141,15 +164,11 @@ function Calendar({
           <ChevronRight size={16} style={{ color: "#6B7280" }} />
         </button>
       </div>
-
-      {/* Day labels */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "8px 12px 4px", gap: "2px" }}>
         {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(d => (
           <div key={d} style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 0" }}>{d}</div>
         ))}
       </div>
-
-      {/* Days grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "0 12px 12px", gap: "4px" }}>
         {days.map((date, i) => {
           if (!date) return <div key={i} />;
@@ -168,31 +187,15 @@ function Calendar({
                 borderRadius: "10px", border: "none", cursor: "pointer",
                 padding: "6px 2px", display: "flex", flexDirection: "column",
                 alignItems: "center", gap: "2px", transition: "all 0.15s",
-                background: isSelected
-                  ? "linear-gradient(135deg, #2563EB, #1D4ED8)"
-                  : isToday
-                  ? "#EFF6FF"
-                  : "transparent",
+                background: isSelected ? "linear-gradient(135deg, #2563EB, #1D4ED8)" : isToday ? "#EFF6FF" : "transparent",
                 boxShadow: isSelected ? "0 2px 8px rgba(37,99,235,0.3)" : "none",
               }}>
-              {/* Day number */}
-              <span style={{
-                fontSize: "13px", fontWeight: isToday || isSelected ? 800 : 500,
-                color: isSelected ? "white" : isToday ? "#2563EB" : isFuture ? "#D1D5DB" : "#374151",
-                lineHeight: 1,
-              }}>{date.getDate()}</span>
-
-              {/* Performance badge */}
+              <span style={{ fontSize: "13px", fontWeight: isToday || isSelected ? 800 : 500, color: isSelected ? "white" : isToday ? "#2563EB" : isFuture ? "#D1D5DB" : "#374151", lineHeight: 1 }}>{date.getDate()}</span>
               {hasBets && (
                 hasPending && !isPos && !isNeg ? (
                   <span style={{ fontSize: "9px", fontWeight: 700, color: isSelected ? "rgba(255,255,255,0.8)" : "#2563EB", lineHeight: 1 }}>•</span>
                 ) : (isPos || isNeg) ? (
-                  <span style={{
-                    fontSize: "9px", fontWeight: 800, lineHeight: 1,
-                    color: isSelected ? "white" : isPos ? "#16A34A" : "#DC2626",
-                    background: isSelected ? "rgba(255,255,255,0.2)" : isPos ? "#F0FDF4" : "#FEF2F2",
-                    padding: "1px 4px", borderRadius: "4px",
-                  }}>
+                  <span style={{ fontSize: "9px", fontWeight: 800, lineHeight: 1, color: isSelected ? "white" : isPos ? "#16A34A" : "#DC2626", background: isSelected ? "rgba(255,255,255,0.2)" : isPos ? "#F0FDF4" : "#FEF2F2", padding: "1px 4px", borderRadius: "4px" }}>
                     {isPos ? "+" : ""}{total}U
                   </span>
                 ) : (
@@ -217,7 +220,6 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
       {isWon && <div style={{ height: "3px", background: "linear-gradient(90deg, #16A34A, #4ADE80)" }} />}
       {isLost && <div style={{ height: "3px", background: "linear-gradient(90deg, #DC2626, #F87171)" }} />}
       {isPending && <div style={{ height: "3px", background: "linear-gradient(90deg, #2563EB, #60A5FA)" }} />}
-
       <div style={{ padding: "16px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -234,7 +236,6 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
             <div style={{ fontSize: "11px", color: "#9CA3AF", marginTop: "2px" }}>{bet.unit}U</div>
           </div>
         </div>
-
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "12px", borderTop: "1px solid #F3F4F6", flexWrap: "wrap", gap: "8px" }}>
           <span style={{ fontSize: "12px", color: "#9CA3AF" }}>
             {new Date(bet.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
@@ -262,11 +263,200 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
   );
 }
 
+// ── Montante card ─────────────────────────────────────────────────────────────
+
+function MontanteCard({
+  montante,
+  onParticipate,
+}: {
+  montante: Montante;
+  onParticipate: (id: string, following: boolean, initialStake: number | null) => void;
+}) {
+  const [stakeInput, setStakeInput] = useState(montante.initialStake != null ? String(montante.initialStake) : "");
+  const [saving, setSaving] = useState(false);
+
+  const isActive = montante.status === "ACTIVE";
+  const isCompleted = montante.status === "COMPLETED";
+  const isCancelled = montante.status === "CANCELLED";
+  const totalSteps = montante.steps.length;
+  const currentStep = montante.wonSteps + 1;
+
+  const startDateStr = new Date(montante.startDate).toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
+  async function handleToggleFollow() {
+    setSaving(true);
+    const newFollowing = !montante.following;
+    const stake = stakeInput !== "" ? Number(stakeInput) : null;
+    onParticipate(montante.id, newFollowing, stake);
+    setSaving(false);
+  }
+
+  async function handleStakeBlur() {
+    if (!montante.following) return;
+    const stake = stakeInput !== "" ? Number(stakeInput) : null;
+    onParticipate(montante.id, montante.following, stake);
+  }
+
+  return (
+    <div style={{ background: "white", borderRadius: "20px", border: "1px solid #E5E7EB", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+      {/* Top strip */}
+      <div style={{
+        height: "4px",
+        background: isActive
+          ? "linear-gradient(90deg, #F59E0B, #FBBF24)"
+          : isCompleted
+          ? "linear-gradient(90deg, #6B7280, #9CA3AF)"
+          : "linear-gradient(90deg, #EF4444, #F87171)",
+      }} />
+
+      <div style={{ padding: "20px" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "16px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
+              <span style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "22px", letterSpacing: "0.06em", color: "#111827" }}>
+                Montante N°{montante.number}
+              </span>
+              {isActive && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 10px", borderRadius: "999px", background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A" }}>En cours</span>}
+              {isCompleted && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 10px", borderRadius: "999px", background: "#F3F4F6", color: "#6B7280", border: "1px solid #E5E7EB" }}>Terminée</span>}
+              {isCancelled && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "3px 10px", borderRadius: "999px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>Annulée</span>}
+            </div>
+            <p style={{ fontSize: "12px", color: "#6B7280", display: "flex", alignItems: "center", gap: "4px" }}>
+              <CalendarDays size={12} />
+              Début le {startDateStr}
+            </p>
+            {montante.description && (
+              <p style={{ fontSize: "13px", color: "#374151", marginTop: "6px", lineHeight: 1.4 }}>{montante.description}</p>
+            )}
+          </div>
+          {/* Progress bubble */}
+          {isActive && totalSteps > 0 && (
+            <div style={{ textAlign: "center", background: "linear-gradient(135deg, #F59E0B, #D97706)", borderRadius: "14px", padding: "10px 14px", flexShrink: 0, boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
+              <div style={{ fontSize: "18px", fontWeight: 800, color: "white", lineHeight: 1 }}>
+                {Math.min(currentStep, totalSteps)}/{totalSteps}
+              </div>
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.85)", fontWeight: 600, marginTop: "2px" }}>étape</div>
+            </div>
+          )}
+        </div>
+
+        {/* Steps */}
+        {montante.steps.length > 0 && (
+          <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {montante.steps.map((step) => {
+              const sWon = step.status === "WON";
+              const sLost = step.status === "LOST";
+              const sPending = step.status === "PENDING";
+              return (
+                <div key={step.id} style={{
+                  display: "flex", alignItems: "center", gap: "12px",
+                  background: sWon ? "#F0FDF4" : sLost ? "#FEF2F2" : "#F9FAFB",
+                  border: `1px solid ${sWon ? "#BBF7D0" : sLost ? "#FECACA" : "#E5E7EB"}`,
+                  borderRadius: "12px", padding: "10px 14px",
+                }}>
+                  {/* Step number */}
+                  <div style={{
+                    width: "26px", height: "26px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    background: sWon ? "#16A34A" : sLost ? "#DC2626" : "#E5E7EB",
+                  }}>
+                    {sWon && <CheckCircle2 size={14} style={{ color: "white" }} />}
+                    {sLost && <XCircle size={14} style={{ color: "white" }} />}
+                    {sPending && <span style={{ fontSize: "11px", fontWeight: 800, color: "#6B7280" }}>{step.stepNumber}</span>}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sWon ? "#16A34A" : sLost ? "#DC2626" : "#6B7280" }}>{step.sport}</span>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF" }}>@{step.odds}</span>
+                    </div>
+                    <p style={{ fontSize: "13px", fontWeight: 500, color: "#374151", lineHeight: 1.3 }}>{step.description}</p>
+                  </div>
+
+                  {/* Status label */}
+                  <div style={{ flexShrink: 0, fontSize: "11px", fontWeight: 700 }}>
+                    {sWon && <span style={{ color: "#16A34A" }}>Gagné ✓</span>}
+                    {sLost && <span style={{ color: "#DC2626" }}>Perdu ✗</span>}
+                    {sPending && <span style={{ color: "#2563EB", display: "flex", alignItems: "center", gap: "3px" }}><Clock size={11} /> Attente</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {montante.steps.length === 0 && (
+          <div style={{ textAlign: "center", padding: "20px", background: "#F9FAFB", borderRadius: "12px", marginBottom: "20px" }}>
+            <p style={{ fontSize: "13px", color: "#9CA3AF" }}>Les étapes seront ajoutées au fur et à mesure</p>
+          </div>
+        )}
+
+        {/* Participation */}
+        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <Users size={13} style={{ color: "#9CA3AF" }} />
+              <span style={{ fontSize: "12px", color: "#9CA3AF" }}>{montante.totalFollowers} participant{montante.totalFollowers !== 1 ? "s" : ""}</span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              {montante.following && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <label style={{ fontSize: "12px", color: "#6B7280", fontWeight: 500, whiteSpace: "nowrap" }}>Mise d&apos;entrée :</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <input
+                      type="number"
+                      min="1"
+                      step="any"
+                      placeholder="100"
+                      value={stakeInput}
+                      onChange={e => setStakeInput(e.target.value)}
+                      onBlur={handleStakeBlur}
+                      style={{
+                        width: "72px", padding: "6px 8px", borderRadius: "8px",
+                        border: "1px solid #BFDBFE", background: "#EFF6FF",
+                        fontSize: "13px", fontWeight: 600, color: "#1D4ED8", outline: "none",
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", color: "#6B7280" }}>€</span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleToggleFollow}
+                disabled={saving}
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  fontSize: "12px", fontWeight: 700, padding: "8px 16px",
+                  borderRadius: "999px", border: "none", cursor: "pointer", transition: "all 0.15s",
+                  background: montante.following ? "linear-gradient(135deg, #F59E0B, #D97706)" : "#F3F4F6",
+                  color: montante.following ? "white" : "#6B7280",
+                  boxShadow: montante.following ? "0 2px 8px rgba(245,158,11,0.35)" : "none",
+                  opacity: saving ? 0.7 : 1,
+                }}>
+                {montante.following ? <><CheckCircle2 size={13} /> Je suis</> : <><Target size={13} /> Participer</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const { user, token, logout, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [tab, setTab] = useState<"bets" | "montantes">("bets");
   const [bets, setBets] = useState<Bet[]>([]);
+  const [montantes, setMontantes] = useState<Montante[]>([]);
   const [loading, setLoading] = useState(true);
+  const [montantesLoading, setMontantesLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "settled">("all");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
@@ -284,7 +474,18 @@ export default function DashboardPage() {
     } catch { /* silent */ } finally { setLoading(false); }
   }, [token]);
 
+  const fetchMontantes = useCallback(async () => {
+    if (!token) return;
+    setMontantesLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/montantes`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setMontantes(data.data);
+    } catch { /* silent */ } finally { setMontantesLoading(false); }
+  }, [token]);
+
   useEffect(() => { if (token) fetchBets(); }, [token, fetchBets]);
+  useEffect(() => { if (token) fetchMontantes(); }, [token, fetchMontantes]);
 
   async function handleToggleFollow(betId: string, followed: boolean) {
     if (!token) return;
@@ -301,6 +502,18 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleParticipate(montanteId: string, following: boolean, initialStake: number | null) {
+    if (!token) return;
+    setMontantes(prev => prev.map(m => m.id === montanteId ? { ...m, following, initialStake } : m));
+    try {
+      await fetch(`${API_URL}/api/montantes/${montanteId}/participate`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ following, initialStake }),
+      });
+    } catch { /* silent */ }
+  }
+
   if (authLoading || (!user && !authLoading)) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F9FAFB" }}>
@@ -312,7 +525,6 @@ export default function DashboardPage() {
 
   const stats = computeStats(bets);
 
-  // Si un jour est sélectionné, on filtre par jour — sinon on applique le filtre normal
   const filteredBets = selectedDay
     ? bets.filter(b => {
         const key = toDateKey(new Date(b.createdAt));
@@ -327,8 +539,9 @@ export default function DashboardPage() {
         return true;
       });
 
-  // Résumé du jour sélectionné
   const selectedDayStats = selectedDay ? dayStats(bets, selectedDay) : null;
+  const activeMontantes = montantes.filter(m => m.status === "ACTIVE");
+  const completedMontantes = montantes.filter(m => m.status !== "ACTIVE");
 
   return (
     <div style={{ minHeight: "100vh", background: "#F9FAFB" }}>
@@ -336,8 +549,8 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div style={{ background: "white", borderBottom: "1px solid #E5E7EB" }}>
-        <div style={{ maxWidth: "720px", margin: "0 auto", padding: "20px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <div style={{ maxWidth: "720px", margin: "0 auto", padding: "20px 16px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", paddingBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Image src="/images/logo.png" alt="PrognoBeast" width={40} height={40} style={{ borderRadius: "10px", objectFit: "contain" }} />
               <div>
@@ -354,93 +567,148 @@ export default function DashboardPage() {
               <LogOut size={14} />
             </button>
           </div>
+
+          {/* Main tabs */}
+          <div style={{ display: "flex", gap: "0" }}>
+            {[
+              { key: "bets" as const, label: "Pronostics", icon: <TrendingUp size={15} />, badge: null },
+              { key: "montantes" as const, label: "Montantes", icon: <Layers size={15} />, badge: activeMontantes.length },
+            ].map(({ key, label, icon, badge }) => (
+              <button key={key} onClick={() => setTab(key)} style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "10px 20px", border: "none", background: "none", cursor: "pointer",
+                fontSize: "14px", fontWeight: 700, transition: "all 0.15s",
+                color: tab === key ? "#2563EB" : "#6B7280",
+                borderBottom: tab === key ? "2px solid #2563EB" : "2px solid transparent",
+                marginBottom: "-1px",
+              }}>
+                {icon} {label}
+                {badge != null && badge > 0 && (
+                  <span style={{ background: "#F59E0B", color: "white", fontSize: "10px", fontWeight: 800, padding: "1px 6px", borderRadius: "999px" }}>{badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
+
       <div style={{ maxWidth: "720px", margin: "0 auto", padding: "24px 16px" }}>
 
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "24px" }}>
-          <StatCard label="Aujourd'hui" stats={stats.day} />
-          <StatCard label="Cette semaine" stats={stats.week} />
-          <StatCard label="Ce mois" stats={stats.month} />
-          <StatCard label="Total" stats={stats.all} isTotal />
-        </div>
-
-        {/* Calendrier */}
-        <Calendar bets={bets} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-
-        {/* Bandeau jour sélectionné */}
-        {selectedDay && selectedDayStats && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            background: "white", borderRadius: "12px", padding: "12px 16px",
-            border: "1px solid #BFDBFE", marginBottom: "16px",
-            boxShadow: "0 2px 8px rgba(37,99,235,0.08)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <CalendarDays size={16} style={{ color: "#2563EB" }} />
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#111827" }}>
-                {new Date(selectedDay + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-              </span>
+        {/* ── PRONOSTICS TAB ── */}
+        {tab === "bets" && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "24px" }}>
+              <StatCard label="Aujourd'hui" stats={stats.day} />
+              <StatCard label="Cette semaine" stats={stats.week} />
+              <StatCard label="Ce mois" stats={stats.month} />
+              <StatCard label="Total" stats={stats.all} isTotal />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              {selectedDayStats.hasPending && (
-                <span style={{ fontSize: "12px", color: "#2563EB", fontWeight: 600 }}>En cours…</span>
-              )}
-              {(selectedDayStats.total !== 0) && (
-                <span style={{
-                  fontSize: "16px", fontWeight: 800,
-                  color: selectedDayStats.total > 0 ? "#16A34A" : "#DC2626",
-                }}>
-                  {selectedDayStats.total > 0 ? "+" : ""}{selectedDayStats.total}U
-                </span>
-              )}
-              {selectedDayStats.total === 0 && !selectedDayStats.hasPending && (
-                <span style={{ fontSize: "13px", color: "#9CA3AF", fontWeight: 600 }}>0U</span>
-              )}
+
+            <Calendar bets={bets} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+
+            {selectedDay && selectedDayStats && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "white", borderRadius: "12px", padding: "12px 16px", border: "1px solid #BFDBFE", marginBottom: "16px", boxShadow: "0 2px 8px rgba(37,99,235,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <CalendarDays size={16} style={{ color: "#2563EB" }} />
+                  <span style={{ fontSize: "14px", fontWeight: 700, color: "#111827" }}>
+                    {new Date(selectedDay + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  {selectedDayStats.hasPending && <span style={{ fontSize: "12px", color: "#2563EB", fontWeight: 600 }}>En cours…</span>}
+                  {selectedDayStats.total !== 0 && (
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: selectedDayStats.total > 0 ? "#16A34A" : "#DC2626" }}>
+                      {selectedDayStats.total > 0 ? "+" : ""}{selectedDayStats.total}U
+                    </span>
+                  )}
+                  {selectedDayStats.total === 0 && !selectedDayStats.hasPending && (
+                    <span style={{ fontSize: "13px", color: "#9CA3AF", fontWeight: 600 }}>0U</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "8px", marginBottom: "20px", background: "white", borderRadius: "12px", padding: "6px", border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              {([
+                { key: "all", label: "Tous" },
+                { key: "pending", label: "En attente" },
+                { key: "settled", label: "Terminés" },
+              ] as const).map(({ key, label }) => (
+                <button key={key} onClick={() => setFilter(key)} style={{
+                  flex: 1, padding: "8px 4px", borderRadius: "8px", border: "none",
+                  fontSize: "13px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
+                  background: filter === key ? "#2563EB" : "transparent",
+                  color: filter === key ? "white" : "#6B7280",
+                  boxShadow: filter === key ? "0 2px 8px rgba(37,99,235,0.3)" : "none",
+                }}>{label}</button>
+              ))}
             </div>
-          </div>
+
+            {loading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #2563EB", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              </div>
+            ) : filteredBets.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "16px", border: "1px solid #E5E7EB" }}>
+                <CalendarDays size={44} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
+                <p style={{ fontSize: "15px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                  {selectedDay ? "Aucun pari ce jour-là" : "Aucun pari pour le moment"}
+                </p>
+                <p style={{ fontSize: "13px", color: "#9CA3AF" }}>
+                  {selectedDay ? "Sélectionne un autre jour ou clique sur « Voir tous les paris »." : "Les prochains pronostics apparaîtront ici."}
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {filteredBets.map(bet => (
+                  <BetCard key={bet.id} bet={bet} onToggleFollow={handleToggleFollow} />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Filtres */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "20px", background: "white", borderRadius: "12px", padding: "6px", border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          {([
-            { key: "all", label: "Tous" },
-            { key: "pending", label: "En attente" },
-            { key: "settled", label: "Terminés" },
-          ] as const).map(({ key, label }) => (
-            <button key={key} onClick={() => setFilter(key)} style={{
-              flex: 1, padding: "8px 4px", borderRadius: "8px", border: "none",
-              fontSize: "13px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
-              background: filter === key ? "#2563EB" : "transparent",
-              color: filter === key ? "white" : "#6B7280",
-              boxShadow: filter === key ? "0 2px 8px rgba(37,99,235,0.3)" : "none",
-            }}>{label}</button>
-          ))}
-        </div>
-
-        {/* Liste paris */}
-        {loading ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #2563EB", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
-          </div>
-        ) : filteredBets.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "16px", border: "1px solid #E5E7EB" }}>
-            <CalendarDays size={44} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
-              {selectedDay ? "Aucun pari ce jour-là" : "Aucun pari pour le moment"}
-            </p>
-            <p style={{ fontSize: "13px", color: "#9CA3AF" }}>
-              {selectedDay ? "Sélectionne un autre jour ou clique sur « Voir tous les paris »." : "Les prochains pronostics apparaîtront ici."}
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {filteredBets.map(bet => (
-              <BetCard key={bet.id} bet={bet} onToggleFollow={handleToggleFollow} />
-            ))}
-          </div>
+        {/* ── MONTANTES TAB ── */}
+        {tab === "montantes" && (
+          <>
+            {montantesLoading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #F59E0B", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              </div>
+            ) : montantes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "80px 20px", background: "white", borderRadius: "20px", border: "1px solid #E5E7EB" }}>
+                <Layers size={48} style={{ color: "#D1D5DB", margin: "0 auto 16px" }} />
+                <p style={{ fontSize: "16px", fontWeight: 700, color: "#374151", marginBottom: "6px" }}>Aucune montante pour le moment</p>
+                <p style={{ fontSize: "13px", color: "#9CA3AF" }}>Les montantes apparaîtront ici dès que l&apos;administrateur en créera une.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {activeMontantes.length > 0 && (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "#D97706" }}>En cours</span>
+                      <div style={{ flex: 1, height: "1px", background: "#FDE68A" }} />
+                    </div>
+                    {activeMontantes.map(m => (
+                      <MontanteCard key={m.id} montante={m} onParticipate={handleParticipate} />
+                    ))}
+                  </>
+                )}
+                {completedMontantes.length > 0 && (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF" }}>Terminées</span>
+                      <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+                    </div>
+                    {completedMontantes.map(m => (
+                      <MontanteCard key={m.id} montante={m} onParticipate={handleParticipate} />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
