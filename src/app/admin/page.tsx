@@ -186,6 +186,18 @@ function PreviewCalendar({ bets, selectedDay, onSelectDay }: { bets: AdminBet[];
   );
 }
 
+function computeAdminMontanteSteps(steps: AdminMontanteStep[], initialStake: number) {
+  let running = initialStake;
+  return steps.map((step) => {
+    const betAmount = parseFloat(running.toFixed(2));
+    const potentialReturn = parseFloat((running * step.odds).toFixed(2));
+    const profit = parseFloat((potentialReturn - betAmount).toFixed(2));
+    if (step.status === "WON") running = potentialReturn;
+    else if (step.status === "LOST") running = 0;
+    return { betAmount, potentialReturn, profit };
+  });
+}
+
 const inp: React.CSSProperties = {
   width: "100%", background: "#F9FAFB", border: "1px solid #E5E7EB",
   borderRadius: "10px", padding: "10px 12px", fontSize: "14px",
@@ -204,6 +216,7 @@ export default function AdminPage() {
   const [montanteError, setMontanteError] = useState("");
   const [montanteCreating, setMontanteCreating] = useState(false);
   const [expandedMontante, setExpandedMontante] = useState<string | null>(null);
+  const [adminSimulStake, setAdminSimulStake] = useState<string>("100");
   const [stepForms, setStepForms] = useState<Record<string, { sport: string; description: string; odds: string }>>({});
   const [stepSaving, setStepSaving] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -887,34 +900,86 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+                        {/* Simulateur mise */}
+                        {m.steps.length > 0 && (
+                          <div style={{ background: "linear-gradient(135deg, #FFFBEB, #FEF3C7)", border: "1px solid #FDE68A", borderRadius: "12px", padding: "10px 14px", marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#92400E", textTransform: "uppercase", letterSpacing: "0.08em" }}>Simuler avec :</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <input
+                                type="number" min="1" step="any"
+                                value={adminSimulStake}
+                                onChange={e => setAdminSimulStake(e.target.value)}
+                                style={{ width: "80px", padding: "6px 8px", borderRadius: "8px", border: "2px solid #F59E0B", background: "white", fontSize: "14px", fontWeight: 700, color: "#D97706", outline: "none", textAlign: "right" }}
+                              />
+                              <span style={{ fontSize: "13px", fontWeight: 700, color: "#D97706" }}>€</span>
+                              {(() => {
+                                const s = Number(adminSimulStake);
+                                if (!s || s <= 0) return null;
+                                const calcs = computeAdminMontanteSteps(m.steps, s);
+                                const last = calcs[calcs.length - 1];
+                                const allWon = m.steps.every(st => st.status === "WON");
+                                const anyLost = m.steps.some(st => st.status === "LOST");
+                                const finalAmt = anyLost ? 0 : last.potentialReturn;
+                                const profit = parseFloat((finalAmt - s).toFixed(2));
+                                return (
+                                  <span style={{ fontSize: "13px", fontWeight: 800, color: profit > 0 ? "#16A34A" : "#DC2626" }}>
+                                    → {allWon || anyLost ? `${finalAmt.toFixed(2)} €` : `${finalAmt.toFixed(2)} € potentiel`}
+                                    {profit > 0 && ` (+${profit.toFixed(2)} €)`}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Steps */}
                         {m.steps.length > 0 && (
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: isExpanded ? "16px" : "0" }}>
-                            {m.steps.map(step => (
+                            {m.steps.map((step, idx) => {
+                              const s = Number(adminSimulStake);
+                              const calcs = s > 0 ? computeAdminMontanteSteps(m.steps, s) : null;
+                              const calc = calcs ? calcs[idx] : null;
+                              return (
                               <div key={step.id} style={{
-                                display: "flex", alignItems: "center", gap: "10px",
                                 background: step.status === "WON" ? "#F0FDF4" : step.status === "LOST" ? "#FEF2F2" : "#F9FAFB",
                                 border: `1px solid ${step.status === "WON" ? "#BBF7D0" : step.status === "LOST" ? "#FECACA" : "#E5E7EB"}`,
-                                borderRadius: "10px", padding: "10px 12px",
+                                borderRadius: "10px", overflow: "hidden",
                               }}>
-                                <div style={{ width: "22px", height: "22px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: step.status === "WON" ? "#16A34A" : step.status === "LOST" ? "#DC2626" : "#E5E7EB" }}>
-                                  {step.status === "WON" && <CheckCircle2 size={12} style={{ color: "white" }} />}
-                                  {step.status === "LOST" && <XCircle size={12} style={{ color: "white" }} />}
-                                  {step.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 800, color: "#6B7280" }}>{step.stepNumber}</span>}
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px" }}>
+                                  <div style={{ width: "22px", height: "22px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: step.status === "WON" ? "#16A34A" : step.status === "LOST" ? "#DC2626" : "#E5E7EB" }}>
+                                    {step.status === "WON" && <CheckCircle2 size={12} style={{ color: "white" }} />}
+                                    {step.status === "LOST" && <XCircle size={12} style={{ color: "white" }} />}
+                                    {step.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 800, color: "#6B7280" }}>{step.stepNumber}</span>}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: "10px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{step.sport} @{step.odds}</div>
+                                    <div style={{ fontSize: "13px", color: "#374151" }}>{step.description}</div>
+                                  </div>
+                                  {step.status === "PENDING" && (
+                                    <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                                      <button onClick={() => handleSetStepResult(m.id, step.id, "WON")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #16A34A, #15803D)", color: "white" }}>✓ Gagné</button>
+                                      <button onClick={() => handleSetStepResult(m.id, step.id, "LOST")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "1px solid #FECACA", cursor: "pointer", background: "#FEF2F2", color: "#DC2626" }}>✗ Perdu</button>
+                                      <button onClick={() => handleDeleteStep(m.id, step.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", padding: "2px" }}><Trash2 size={12} /></button>
+                                    </div>
+                                  )}
                                 </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{step.sport} @{step.odds}</div>
-                                  <div style={{ fontSize: "13px", color: "#374151" }}>{step.description}</div>
-                                </div>
-                                {step.status === "PENDING" && (
-                                  <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-                                    <button onClick={() => handleSetStepResult(m.id, step.id, "WON")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #16A34A, #15803D)", color: "white" }}>✓ Gagné</button>
-                                    <button onClick={() => handleSetStepResult(m.id, step.id, "LOST")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "1px solid #FECACA", cursor: "pointer", background: "#FEF2F2", color: "#DC2626" }}>✗ Perdu</button>
-                                    <button onClick={() => handleDeleteStep(m.id, step.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", padding: "2px" }}><Trash2 size={12} /></button>
+                                {calc && (
+                                  <div style={{
+                                    padding: "6px 12px",
+                                    background: step.status === "WON" ? "#DCFCE7" : step.status === "LOST" ? "#FEE2E2" : "#F0F9FF",
+                                    borderTop: `1px solid ${step.status === "WON" ? "#BBF7D0" : step.status === "LOST" ? "#FECACA" : "#BAE6FD"}`,
+                                    display: "flex", alignItems: "center", gap: "10px", fontSize: "11px", fontWeight: 600,
+                                    color: step.status === "WON" ? "#15803D" : step.status === "LOST" ? "#B91C1C" : "#0369A1",
+                                  }}>
+                                    <span>Mise : <strong>{calc.betAmount.toFixed(2)} €</strong></span>
+                                    <span>→</span>
+                                    <span style={{ fontWeight: 800, fontSize: "12px" }}>
+                                      {step.status === "LOST" ? `-${calc.betAmount.toFixed(2)} €` : `${calc.potentialReturn.toFixed(2)} € (+${calc.profit.toFixed(2)} €)`}
+                                    </span>
                                   </div>
                                 )}
                               </div>
-                            ))}
+                            );})}
                           </div>
                         )}
 

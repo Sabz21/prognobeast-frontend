@@ -263,6 +263,20 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
   );
 }
 
+// ── Montante calculator ───────────────────────────────────────────────────────
+
+function computeMontanteSteps(steps: MontanteStep[], initialStake: number) {
+  let running = initialStake;
+  return steps.map((step) => {
+    const betAmount = parseFloat(running.toFixed(2));
+    const potentialReturn = parseFloat((running * step.odds).toFixed(2));
+    const profit = parseFloat((potentialReturn - betAmount).toFixed(2));
+    if (step.status === "WON") running = potentialReturn;
+    else if (step.status === "LOST") running = 0;
+    return { betAmount, potentialReturn, profit };
+  });
+}
+
 // ── Montante card ─────────────────────────────────────────────────────────────
 
 function MontanteCard({
@@ -272,7 +286,9 @@ function MontanteCard({
   montante: Montante;
   onParticipate: (id: string, following: boolean, initialStake: number | null) => void;
 }) {
-  const [stakeInput, setStakeInput] = useState(montante.initialStake != null ? String(montante.initialStake) : "");
+  const [stakeInput, setStakeInput] = useState(
+    montante.initialStake != null ? String(montante.initialStake) : ""
+  );
   const [saving, setSaving] = useState(false);
 
   const isActive = montante.status === "ACTIVE";
@@ -281,6 +297,17 @@ function MontanteCard({
   const totalSteps = montante.steps.length;
   const currentStep = montante.wonSteps + 1;
 
+  const liveStake = stakeInput !== "" && !isNaN(Number(stakeInput)) && Number(stakeInput) > 0
+    ? Number(stakeInput) : null;
+
+  const stepCalcs = liveStake ? computeMontanteSteps(montante.steps, liveStake) : null;
+
+  // Final potential if all steps win
+  const finalPotential = stepCalcs && stepCalcs.length > 0
+    ? stepCalcs[stepCalcs.length - 1].potentialReturn
+    : null;
+  const totalProfit = liveStake && finalPotential ? parseFloat((finalPotential - liveStake).toFixed(2)) : null;
+
   const startDateStr = new Date(montante.startDate).toLocaleDateString("fr-FR", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
@@ -288,15 +315,14 @@ function MontanteCard({
   async function handleToggleFollow() {
     setSaving(true);
     const newFollowing = !montante.following;
-    const stake = stakeInput !== "" ? Number(stakeInput) : null;
+    const stake = liveStake;
     onParticipate(montante.id, newFollowing, stake);
     setSaving(false);
   }
 
-  async function handleStakeBlur() {
+  function handleStakeBlur() {
     if (!montante.following) return;
-    const stake = stakeInput !== "" ? Number(stakeInput) : null;
-    onParticipate(montante.id, montante.following, stake);
+    onParticipate(montante.id, montante.following, liveStake);
   }
 
   return (
@@ -314,7 +340,7 @@ function MontanteCard({
       <div style={{ padding: "20px" }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "16px" }}>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
               <span style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "22px", letterSpacing: "0.06em", color: "#111827" }}>
                 Montante N°{montante.number}
@@ -342,45 +368,134 @@ function MontanteCard({
           )}
         </div>
 
+        {/* ── Stake input (visible à tous) ── */}
+        <div style={{
+          background: "linear-gradient(135deg, #FFFBEB, #FEF3C7)",
+          border: "1px solid #FDE68A", borderRadius: "14px", padding: "14px 16px", marginBottom: "16px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+            <div>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "#92400E", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>
+                Ma mise d&apos;entrée
+              </p>
+              <p style={{ fontSize: "11px", color: "#B45309" }}>
+                Le calculateur se met à jour en temps réel
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <input
+                type="number"
+                min="1"
+                step="any"
+                placeholder="100"
+                value={stakeInput}
+                onChange={e => setStakeInput(e.target.value)}
+                onBlur={handleStakeBlur}
+                style={{
+                  width: "90px", padding: "8px 10px", borderRadius: "10px",
+                  border: "2px solid #F59E0B", background: "white",
+                  fontSize: "16px", fontWeight: 700, color: "#D97706", outline: "none",
+                  textAlign: "right",
+                }}
+              />
+              <span style={{ fontSize: "15px", fontWeight: 700, color: "#D97706" }}>€</span>
+            </div>
+          </div>
+
+          {/* Résumé final si mise saisie */}
+          {liveStake && totalSteps > 0 && finalPotential != null && (
+            <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #FDE68A", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+              <span style={{ fontSize: "12px", color: "#92400E", fontWeight: 600 }}>
+                Si toutes les étapes gagnent :
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "18px", fontWeight: 800, color: "#16A34A" }}>
+                  {finalPotential.toFixed(2)} €
+                </span>
+                {totalProfit != null && totalProfit > 0 && (
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#16A34A", background: "#F0FDF4", padding: "2px 8px", borderRadius: "999px", border: "1px solid #BBF7D0" }}>
+                    +{totalProfit.toFixed(2)} €
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Steps */}
         {montante.steps.length > 0 && (
           <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "8px" }}>
-            {montante.steps.map((step) => {
+            {montante.steps.map((step, idx) => {
               const sWon = step.status === "WON";
               const sLost = step.status === "LOST";
               const sPending = step.status === "PENDING";
+              const calc = stepCalcs ? stepCalcs[idx] : null;
+
               return (
                 <div key={step.id} style={{
-                  display: "flex", alignItems: "center", gap: "12px",
                   background: sWon ? "#F0FDF4" : sLost ? "#FEF2F2" : "#F9FAFB",
                   border: `1px solid ${sWon ? "#BBF7D0" : sLost ? "#FECACA" : "#E5E7EB"}`,
-                  borderRadius: "12px", padding: "10px 14px",
+                  borderRadius: "12px", overflow: "hidden",
                 }}>
-                  {/* Step number */}
-                  <div style={{
-                    width: "26px", height: "26px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                    background: sWon ? "#16A34A" : sLost ? "#DC2626" : "#E5E7EB",
-                  }}>
-                    {sWon && <CheckCircle2 size={14} style={{ color: "white" }} />}
-                    {sLost && <XCircle size={14} style={{ color: "white" }} />}
-                    {sPending && <span style={{ fontSize: "11px", fontWeight: 800, color: "#6B7280" }}>{step.stepNumber}</span>}
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sWon ? "#16A34A" : sLost ? "#DC2626" : "#6B7280" }}>{step.sport}</span>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF" }}>@{step.odds}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px" }}>
+                    {/* Step number */}
+                    <div style={{
+                      width: "26px", height: "26px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      background: sWon ? "#16A34A" : sLost ? "#DC2626" : "#E5E7EB",
+                    }}>
+                      {sWon && <CheckCircle2 size={14} style={{ color: "white" }} />}
+                      {sLost && <XCircle size={14} style={{ color: "white" }} />}
+                      {sPending && <span style={{ fontSize: "11px", fontWeight: 800, color: "#6B7280" }}>{step.stepNumber}</span>}
                     </div>
-                    <p style={{ fontSize: "13px", fontWeight: 500, color: "#374151", lineHeight: 1.3 }}>{step.description}</p>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sWon ? "#16A34A" : sLost ? "#DC2626" : "#6B7280" }}>{step.sport}</span>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF" }}>@{step.odds}</span>
+                      </div>
+                      <p style={{ fontSize: "13px", fontWeight: 500, color: "#374151", lineHeight: 1.3 }}>{step.description}</p>
+                    </div>
+
+                    {/* Status */}
+                    <div style={{ flexShrink: 0, fontSize: "11px", fontWeight: 700 }}>
+                      {sWon && <span style={{ color: "#16A34A" }}>Gagné ✓</span>}
+                      {sLost && <span style={{ color: "#DC2626" }}>Perdu ✗</span>}
+                      {sPending && <span style={{ color: "#2563EB", display: "flex", alignItems: "center", gap: "3px" }}><Clock size={11} /> Attente</span>}
+                    </div>
                   </div>
 
-                  {/* Status label */}
-                  <div style={{ flexShrink: 0, fontSize: "11px", fontWeight: 700 }}>
-                    {sWon && <span style={{ color: "#16A34A" }}>Gagné ✓</span>}
-                    {sLost && <span style={{ color: "#DC2626" }}>Perdu ✗</span>}
-                    {sPending && <span style={{ color: "#2563EB", display: "flex", alignItems: "center", gap: "3px" }}><Clock size={11} /> Attente</span>}
-                  </div>
+                  {/* Calcul ligne */}
+                  {calc && (
+                    <div style={{
+                      padding: "8px 14px",
+                      background: sWon ? "#DCFCE7" : sLost ? "#FEE2E2" : "#F0F9FF",
+                      borderTop: `1px solid ${sWon ? "#BBF7D0" : sLost ? "#FECACA" : "#BAE6FD"}`,
+                      display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ fontSize: "11px", color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1", fontWeight: 600 }}>
+                          Mise :
+                        </span>
+                        <span style={{ fontSize: "12px", fontWeight: 800, color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0C4A6E" }}>
+                          {calc.betAmount.toFixed(2)} €
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ fontSize: "11px", color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1", fontWeight: 600 }}>
+                          {sWon ? "Récupéré :" : sLost ? "Perdu :" : "Si gagné →"}
+                        </span>
+                        <span style={{ fontSize: "14px", fontWeight: 800, color: sWon ? "#16A34A" : sLost ? "#DC2626" : "#0369A1" }}>
+                          {sLost ? `-${calc.betAmount.toFixed(2)} €` : `${calc.potentialReturn.toFixed(2)} €`}
+                        </span>
+                        {!sLost && (
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: sWon ? "#16A34A" : "#0369A1", background: sWon ? "#F0FDF4" : "#E0F2FE", padding: "1px 5px", borderRadius: "4px" }}>
+                            +{calc.profit.toFixed(2)} €
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -400,46 +515,20 @@ function MontanteCard({
               <Users size={13} style={{ color: "#9CA3AF" }} />
               <span style={{ fontSize: "12px", color: "#9CA3AF" }}>{montante.totalFollowers} participant{montante.totalFollowers !== 1 ? "s" : ""}</span>
             </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              {montante.following && (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <label style={{ fontSize: "12px", color: "#6B7280", fontWeight: 500, whiteSpace: "nowrap" }}>Mise d&apos;entrée :</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <input
-                      type="number"
-                      min="1"
-                      step="any"
-                      placeholder="100"
-                      value={stakeInput}
-                      onChange={e => setStakeInput(e.target.value)}
-                      onBlur={handleStakeBlur}
-                      style={{
-                        width: "72px", padding: "6px 8px", borderRadius: "8px",
-                        border: "1px solid #BFDBFE", background: "#EFF6FF",
-                        fontSize: "13px", fontWeight: 600, color: "#1D4ED8", outline: "none",
-                      }}
-                    />
-                    <span style={{ fontSize: "12px", color: "#6B7280" }}>€</span>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={handleToggleFollow}
-                disabled={saving}
-                style={{
-                  display: "flex", alignItems: "center", gap: "6px",
-                  fontSize: "12px", fontWeight: 700, padding: "8px 16px",
-                  borderRadius: "999px", border: "none", cursor: "pointer", transition: "all 0.15s",
-                  background: montante.following ? "linear-gradient(135deg, #F59E0B, #D97706)" : "#F3F4F6",
-                  color: montante.following ? "white" : "#6B7280",
-                  boxShadow: montante.following ? "0 2px 8px rgba(245,158,11,0.35)" : "none",
-                  opacity: saving ? 0.7 : 1,
-                }}>
-                {montante.following ? <><CheckCircle2 size={13} /> Je suis</> : <><Target size={13} /> Participer</>}
-              </button>
-            </div>
+            <button
+              onClick={handleToggleFollow}
+              disabled={saving}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                fontSize: "12px", fontWeight: 700, padding: "8px 16px",
+                borderRadius: "999px", border: "none", cursor: "pointer", transition: "all 0.15s",
+                background: montante.following ? "linear-gradient(135deg, #F59E0B, #D97706)" : "#F3F4F6",
+                color: montante.following ? "white" : "#6B7280",
+                boxShadow: montante.following ? "0 2px 8px rgba(245,158,11,0.35)" : "none",
+                opacity: saving ? 0.7 : 1,
+              }}>
+              {montante.following ? <><CheckCircle2 size={13} /> Je participe</> : <><Target size={13} /> Participer</>}
+            </button>
           </div>
         </div>
       </div>
