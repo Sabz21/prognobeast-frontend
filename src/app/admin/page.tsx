@@ -217,6 +217,10 @@ export default function AdminPage() {
   const [montanteCreating, setMontanteCreating] = useState(false);
   const [expandedMontante, setExpandedMontante] = useState<string | null>(null);
   const [adminSimulStake, setAdminSimulStake] = useState<string>("100");
+  const [editingMontante, setEditingMontante] = useState<string | null>(null);
+  const [montanteEditForm, setMontanteEditForm] = useState({ description: "", startDate: "" });
+  const [editingStep, setEditingStep] = useState<string | null>(null);
+  const [stepEditForm, setStepEditForm] = useState({ sport: "", description: "", odds: "" });
   const [stepForms, setStepForms] = useState<Record<string, { sport: string; description: string; odds: string }>>({});
   const [stepSaving, setStepSaving] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -336,6 +340,36 @@ export default function AdminPage() {
     if (!token || !confirm("Supprimer ce pari ?")) return;
     const res = await fetch(`${API_URL}/api/admin/bets/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setBets(prev => prev.filter(b => b.id !== id));
+  }
+
+  async function handleEditMontante(id: string) {
+    if (!token) return;
+    const res = await fetch(`${API_URL}/api/admin/montantes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ description: montanteEditForm.description, startDate: montanteEditForm.startDate }),
+    });
+    if (res.ok) { setEditingMontante(null); await fetchMontantes(); }
+  }
+
+  async function handleEditStep(montanteId: string, stepId: string) {
+    if (!token) return;
+    const res = await fetch(`${API_URL}/api/admin/montantes/${montanteId}/steps/${stepId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ sport: stepEditForm.sport, description: stepEditForm.description, odds: parseFloat(stepEditForm.odds) }),
+    });
+    if (res.ok) { setEditingStep(null); await fetchMontantes(); }
+  }
+
+  async function handleResetStepResult(montanteId: string, stepId: string) {
+    if (!token) return;
+    const res = await fetch(`${API_URL}/api/admin/montantes/${montanteId}/steps/${stepId}/result`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ result: "PENDING" }),
+    });
+    if (res.ok) await fetchMontantes();
   }
 
   async function handleCreateMontante(e: React.FormEvent) {
@@ -868,7 +902,7 @@ export default function AdminPage() {
                       <div style={{ padding: "16px" }}>
                         {/* Header */}
                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "12px" }}>
-                          <div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                               <span style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "20px", letterSpacing: "0.06em", color: "#111827" }}>
                                 Montante N°{m.number}
@@ -876,19 +910,60 @@ export default function AdminPage() {
                               {m.status === "ACTIVE" && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px", background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A" }}>En cours</span>}
                               {m.status === "COMPLETED" && <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px", background: "#F3F4F6", color: "#6B7280", border: "1px solid #E5E7EB" }}>Terminée</span>}
                             </div>
-                            <p style={{ fontSize: "12px", color: "#6B7280", marginTop: "4px" }}>
-                              Début : {new Date(m.startDate).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                            </p>
-                            {m.description && <p style={{ fontSize: "13px", color: "#374151", marginTop: "4px" }}>{m.description}</p>}
-                            <p style={{ fontSize: "12px", color: "#9CA3AF", marginTop: "4px" }}>
-                              {m.steps.length} étape{m.steps.length !== 1 ? "s" : ""} · {m.followers}/{m.totalUsers} participants
-                            </p>
+
+                            {/* Édition description + date */}
+                            {editingMontante === m.id ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                  <div>
+                                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Date de début</label>
+                                    <input type="date" value={montanteEditForm.startDate}
+                                      onChange={e => setMontanteEditForm(p => ({ ...p, startDate: e.target.value }))}
+                                      style={{ ...inp, fontSize: "13px", padding: "7px 10px" }}
+                                      onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                      onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Description</label>
+                                    <input value={montanteEditForm.description}
+                                      onChange={e => setMontanteEditForm(p => ({ ...p, description: e.target.value }))}
+                                      placeholder="Description…"
+                                      style={{ ...inp, fontSize: "13px", padding: "7px 10px" }}
+                                      onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                      onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", gap: "6px" }}>
+                                  <button onClick={() => handleEditMontante(m.id)} style={{ fontSize: "11px", fontWeight: 700, padding: "6px 14px", borderRadius: "999px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #F59E0B, #D97706)", color: "white" }}>Enregistrer</button>
+                                  <button onClick={() => setEditingMontante(null)} style={{ fontSize: "11px", fontWeight: 600, padding: "6px 12px", borderRadius: "999px", border: "1px solid #E5E7EB", background: "white", color: "#6B7280", cursor: "pointer" }}>Annuler</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p style={{ fontSize: "12px", color: "#6B7280", marginTop: "4px" }}>
+                                  Début : {new Date(m.startDate).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                                </p>
+                                {m.description && <p style={{ fontSize: "13px", color: "#374151", marginTop: "4px" }}>{m.description}</p>}
+                                <p style={{ fontSize: "12px", color: "#9CA3AF", marginTop: "4px" }}>
+                                  {m.steps.length} étape{m.steps.length !== 1 ? "s" : ""} · {m.followers}/{m.totalUsers} participants
+                                </p>
+                              </>
+                            )}
                           </div>
-                          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                            <button onClick={() => setExpandedMontante(isExpanded ? null : m.id)}
-                              style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <div style={{ display: "flex", gap: "6px", flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            <button onClick={() => {
+                              if (isExpanded && expandedMontante === m.id) { setExpandedMontante(null); setEditingMontante(null); }
+                              else { setExpandedMontante(m.id); setEditingMontante(null); }
+                            }}
+                              style={{ background: isExpanded ? "#EFF6FF" : "#F9FAFB", border: `1px solid ${isExpanded ? "#BFDBFE" : "#E5E7EB"}`, borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: isExpanded ? "#2563EB" : "#374151", display: "flex", alignItems: "center", gap: "4px" }}>
                               <Pencil size={12} /> {isExpanded ? "Fermer" : "Gérer"}
                             </button>
+                            {isExpanded && editingMontante !== m.id && (
+                              <button onClick={() => { setEditingMontante(m.id); setMontanteEditForm({ description: m.description ?? "", startDate: m.startDate.split("T")[0] }); }}
+                                style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: "#D97706", display: "flex", alignItems: "center", gap: "4px" }}>
+                                <Pencil size={12} /> Modifier infos
+                              </button>
+                            )}
                             <button onClick={() => handleToggleMontanteStatus(m)}
                               style={{ background: m.status === "ACTIVE" ? "#F3F4F6" : "#FEF3C7", border: `1px solid ${m.status === "ACTIVE" ? "#E5E7EB" : "#FDE68A"}`, borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: m.status === "ACTIVE" ? "#6B7280" : "#D97706" }}>
                               {m.status === "ACTIVE" ? "Terminer" : "Réactiver"}
@@ -945,6 +1020,36 @@ export default function AdminPage() {
                                 border: `1px solid ${step.status === "WON" ? "#BBF7D0" : step.status === "LOST" ? "#FECACA" : "#E5E7EB"}`,
                                 borderRadius: "10px", overflow: "hidden",
                               }}>
+                                {editingStep === step.id ? (
+                                  /* Mode édition étape */
+                                  <div style={{ padding: "12px" }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: "6px", marginBottom: "6px" }}>
+                                      <input value={stepEditForm.sport} onChange={e => setStepEditForm(p => ({ ...p, sport: e.target.value }))}
+                                        placeholder="Sport" style={{ ...inp, fontSize: "12px", padding: "6px 10px" }}
+                                        onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                        onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                      <input type="number" step="0.01" min="1.01" value={stepEditForm.odds}
+                                        onChange={e => setStepEditForm(p => ({ ...p, odds: e.target.value }))}
+                                        placeholder="Cote" style={{ ...inp, fontSize: "12px", padding: "6px 10px" }}
+                                        onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                        onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                      <button onClick={() => handleEditStep(m.id, step.id)}
+                                        style={{ fontSize: "11px", fontWeight: 700, borderRadius: "8px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #F59E0B, #D97706)", color: "white" }}>
+                                        Sauver
+                                      </button>
+                                    </div>
+                                    <div style={{ display: "flex", gap: "6px" }}>
+                                      <input value={stepEditForm.description} onChange={e => setStepEditForm(p => ({ ...p, description: e.target.value }))}
+                                        placeholder="Description" style={{ ...inp, fontSize: "12px", padding: "6px 10px", flex: 1 }}
+                                        onFocus={e => e.currentTarget.style.borderColor = "#F59E0B"}
+                                        onBlur={e => e.currentTarget.style.borderColor = "#E5E7EB"} />
+                                      <button onClick={() => setEditingStep(null)}
+                                        style={{ background: "none", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "11px", color: "#6B7280", fontWeight: 600 }}>
+                                        Annuler
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
                                 <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px" }}>
                                   <div style={{ width: "22px", height: "22px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: step.status === "WON" ? "#16A34A" : step.status === "LOST" ? "#DC2626" : "#E5E7EB" }}>
                                     {step.status === "WON" && <CheckCircle2 size={12} style={{ color: "white" }} />}
@@ -955,14 +1060,26 @@ export default function AdminPage() {
                                     <div style={{ fontSize: "10px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{step.sport} @{step.odds}</div>
                                     <div style={{ fontSize: "13px", color: "#374151" }}>{step.description}</div>
                                   </div>
-                                  {step.status === "PENDING" && (
-                                    <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-                                      <button onClick={() => handleSetStepResult(m.id, step.id, "WON")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #16A34A, #15803D)", color: "white" }}>✓ Gagné</button>
-                                      <button onClick={() => handleSetStepResult(m.id, step.id, "LOST")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "1px solid #FECACA", cursor: "pointer", background: "#FEF2F2", color: "#DC2626" }}>✗ Perdu</button>
-                                      <button onClick={() => handleDeleteStep(m.id, step.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", padding: "2px" }}><Trash2 size={12} /></button>
-                                    </div>
-                                  )}
+                                  <div style={{ display: "flex", gap: "4px", flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                    {step.status === "PENDING" && (
+                                      <>
+                                        <button onClick={() => handleSetStepResult(m.id, step.id, "WON")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "none", cursor: "pointer", background: "linear-gradient(135deg, #16A34A, #15803D)", color: "white" }}>✓ Gagné</button>
+                                        <button onClick={() => handleSetStepResult(m.id, step.id, "LOST")} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "1px solid #FECACA", cursor: "pointer", background: "#FEF2F2", color: "#DC2626" }}>✗ Perdu</button>
+                                      </>
+                                    )}
+                                    {(step.status === "WON" || step.status === "LOST") && (
+                                      <button onClick={() => handleResetStepResult(m.id, step.id)} style={{ fontSize: "10px", fontWeight: 700, padding: "4px 8px", borderRadius: "999px", border: "1px solid #E5E7EB", cursor: "pointer", background: "#F9FAFB", color: "#6B7280" }}>↺ Reset</button>
+                                    )}
+                                    {isExpanded && (
+                                      <button onClick={() => { setEditingStep(step.id); setStepEditForm({ sport: step.sport, description: step.description, odds: String(step.odds) }); }}
+                                        style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: "6px", padding: "4px 6px", cursor: "pointer", color: "#D97706", display: "flex" }}>
+                                        <Pencil size={11} />
+                                      </button>
+                                    )}
+                                    <button onClick={() => handleDeleteStep(m.id, step.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", padding: "2px" }}><Trash2 size={12} /></button>
+                                  </div>
                                 </div>
+                                )}
                                 {calc && (
                                   <div style={{
                                     padding: "6px 12px",
