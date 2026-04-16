@@ -73,20 +73,29 @@ function previewDayStats(bets: AdminBet[], key: string) {
   return { total, hasBets, hasPending };
 }
 
-function PreviewStatCard({ label, total, count, isTotal }: { label: string; total: number; count: number; isTotal?: boolean }) {
+type AdminPeriodKey = "day" | "week" | "month" | "all";
+
+function PreviewStatCard({ label, total, count, isTotal, onClick }: { label: string; total: number; count: number; isTotal?: boolean; onClick?: () => void }) {
   const isPos = total > 0; const isNeg = total < 0;
   const color = isPos ? "#16A34A" : isNeg ? "#DC2626" : "#6B7280";
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: isTotal ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "white",
       borderRadius: "16px", padding: "20px",
       border: isTotal ? "none" : "1px solid #E5E7EB",
       boxShadow: isTotal ? "0 4px 24px rgba(37,99,235,0.25)" : "0 1px 3px rgba(0,0,0,0.06)",
       display: "flex", flexDirection: "column", gap: "8px",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-        {isTotal && <Trophy size={13} style={{ color: "rgba(255,255,255,0.8)" }} />}
-        <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: isTotal ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{label}</span>
+      cursor: onClick ? "pointer" : "default", transition: "transform 0.15s, box-shadow 0.15s",
+    }}
+      onMouseEnter={e => { if (onClick) { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = isTotal ? "0 8px 32px rgba(37,99,235,0.35)" : "0 4px 16px rgba(0,0,0,0.1)"; }}}
+      onMouseLeave={e => { if (onClick) { (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLElement).style.boxShadow = isTotal ? "0 4px 24px rgba(37,99,235,0.25)" : "0 1px 3px rgba(0,0,0,0.06)"; }}}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {isTotal && <Trophy size={13} style={{ color: "rgba(255,255,255,0.8)" }} />}
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: isTotal ? "rgba(255,255,255,0.8)" : "#6B7280" }}>{label}</span>
+        </div>
+        {onClick && <span style={{ fontSize: "10px", fontWeight: 600, color: isTotal ? "rgba(255,255,255,0.5)" : "#D1D5DB" }}>Détails →</span>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
         <span style={{ fontSize: "26px", fontWeight: 800, lineHeight: 1, color: isTotal ? "white" : color }}>
@@ -98,6 +107,167 @@ function PreviewStatCard({ label, total, count, isTotal }: { label: string; tota
       <span style={{ fontSize: "12px", color: isTotal ? "rgba(255,255,255,0.6)" : "#9CA3AF" }}>
         {count} pari{count !== 1 ? "s" : ""}
       </span>
+    </div>
+  );
+}
+
+function AdminPeriodDetailModal({ periodKey, label, from, bets, onClose }: {
+  periodKey: AdminPeriodKey; label: string; from: Date; bets: AdminBet[]; onClose: () => void;
+}) {
+  const periodBets = bets.filter(b => new Date(b.createdAt) >= from);
+  const settled = periodBets.filter(b => b.status !== "PENDING");
+  const won = settled.filter(b => b.status === "WON");
+  const lost = settled.filter(b => b.status === "LOST");
+  const pending = periodBets.filter(b => b.status === "PENDING");
+
+  const totalPL = parseFloat(settled.reduce((acc, b) => acc + (betGainLoss(b) ?? 0), 0).toFixed(2));
+  const winRate = settled.length > 0 ? Math.round((won.length / settled.length) * 100) : null;
+
+  const best = [...settled].sort((a, b) => (betGainLoss(b) ?? 0) - (betGainLoss(a) ?? 0))[0] ?? null;
+  const worst = [...settled].sort((a, b) => (betGainLoss(a) ?? 0) - (betGainLoss(b) ?? 0))[0] ?? null;
+
+  const sportMap: Record<string, { pl: number; won: number; lost: number }> = {};
+  settled.forEach(b => {
+    if (!sportMap[b.sport]) sportMap[b.sport] = { pl: 0, won: 0, lost: 0 };
+    sportMap[b.sport].pl += betGainLoss(b) ?? 0;
+    if (b.status === "WON") sportMap[b.sport].won++; else sportMap[b.sport].lost++;
+  });
+  const sports = Object.entries(sportMap)
+    .map(([sport, s]) => ({ sport, pl: parseFloat(s.pl.toFixed(2)), won: s.won, lost: s.lost }))
+    .sort((a, b) => b.pl - a.pl);
+
+  const dateLabel = periodKey === "day"
+    ? new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : periodKey === "all" ? "Depuis le début"
+    : `${from.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} – aujourd'hui`;
+
+  const isPos = totalPL > 0; const isNeg = totalPL < 0;
+  const bestGL = best ? betGainLoss(best) : null;
+  const worstGL = worst ? betGainLoss(worst) : null;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: "20px", width: "100%", maxWidth: "640px", maxHeight: "88vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.2)" }}>
+        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexShrink: 0 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "26px", letterSpacing: "0.06em", color: "#111827", lineHeight: 1, marginBottom: "4px" }}>{label}</h2>
+            <p style={{ fontSize: "12px", color: "#9CA3AF" }}>{dateLabel}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "#F3F4F6", border: "none", borderRadius: "50%", width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            <X size={16} style={{ color: "#6B7280" }} />
+          </button>
+        </div>
+
+        <div style={{ overflow: "auto", flex: 1, padding: "20px 24px" }}>
+          {/* Big P&L */}
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", padding: "20px", background: isPos ? "linear-gradient(135deg, #F0FDF4, #DCFCE7)" : isNeg ? "linear-gradient(135deg, #FEF2F2, #FEE2E2)" : "linear-gradient(135deg, #F9FAFB, #F3F4F6)", borderRadius: "16px", border: `1px solid ${isPos ? "#BBF7D0" : isNeg ? "#FECACA" : "#E5E7EB"}` }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "44px", fontWeight: 800, color: isPos ? "#16A34A" : isNeg ? "#DC2626" : "#6B7280", lineHeight: 1 }}>
+                {isPos ? "+" : ""}{totalPL}U
+              </div>
+              <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "6px" }}>{settled.length} paris terminés</div>
+            </div>
+            {winRate !== null && (
+              <div style={{ textAlign: "center", background: "white", borderRadius: "14px", padding: "14px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", flexShrink: 0 }}>
+                <div style={{ fontSize: "28px", fontWeight: 800, color: "#111827", lineHeight: 1 }}>{winRate}%</div>
+                <div style={{ fontSize: "11px", color: "#9CA3AF", marginTop: "4px", fontWeight: 600 }}>taux victoire</div>
+              </div>
+            )}
+          </div>
+
+          {/* Counters */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "20px" }}>
+            {[
+              { label: "Gagnés", value: won.length, color: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
+              { label: "Perdus", value: lost.length, color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
+              { label: "En attente", value: pending.length, color: "#2563EB", bg: "#EFF6FF", border: "#BFDBFE" },
+            ].map(({ label: l, value, color, bg, border }) => (
+              <div key={l} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "12px", padding: "14px", textAlign: "center" }}>
+                <div style={{ fontSize: "24px", fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "4px", fontWeight: 600 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Best / Worst */}
+          {(bestGL !== null && bestGL > 0) || (worstGL !== null && worstGL < 0) ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "20px" }}>
+              {best && bestGL !== null && bestGL > 0 && (
+                <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "14px", padding: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>🏆 Meilleur</div>
+                  <div style={{ fontSize: "12px", color: "#374151", lineHeight: 1.4, marginBottom: "8px" }}>{best.description}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#16A34A" }}>+{bestGL}U</div>
+                  <div style={{ fontSize: "10px", color: "#9CA3AF", marginTop: "2px" }}>@{best.odds} · {best.unit}U · {best.followers} suivis</div>
+                </div>
+              )}
+              {worst && worstGL !== null && worstGL < 0 && worst.id !== best?.id && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "14px", padding: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px" }}>💔 Pire</div>
+                  <div style={{ fontSize: "12px", color: "#374151", lineHeight: 1.4, marginBottom: "8px" }}>{worst.description}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#DC2626" }}>{worstGL}U</div>
+                  <div style={{ fontSize: "10px", color: "#9CA3AF", marginTop: "2px" }}>@{worst.odds} · {worst.unit}U · {worst.followers} suivis</div>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {/* Sport breakdown */}
+          {sports.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "10px" }}>Par sport</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {sports.map(s => (
+                  <div key={s.sport} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#F9FAFB", borderRadius: "10px", border: "1px solid #E5E7EB" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#111827" }}>{s.sport}</span>
+                      <span style={{ fontSize: "11px", color: "#9CA3AF" }}>{s.won}W / {s.lost}L</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {(s.won + s.lost) > 0 && (
+                        <div style={{ width: "40px", height: "6px", borderRadius: "3px", background: "#E5E7EB", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(s.won / (s.won + s.lost)) * 100}%`, background: "#16A34A", borderRadius: "3px" }} />
+                        </div>
+                      )}
+                      <span style={{ fontSize: "14px", fontWeight: 800, color: s.pl >= 0 ? "#16A34A" : "#DC2626", minWidth: "50px", textAlign: "right" }}>
+                        {s.pl >= 0 ? "+" : ""}{s.pl}U
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bet list */}
+          {periodBets.length > 0 && (
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "10px" }}>Tous les paris ({periodBets.length})</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {[...periodBets].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(bet => {
+                  const gl = betGainLoss(bet);
+                  return (
+                    <div key={bet.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", background: bet.status === "WON" ? "#F0FDF4" : bet.status === "LOST" ? "#FEF2F2" : "#F9FAFB", border: `1px solid ${bet.status === "WON" ? "#BBF7D0" : bet.status === "LOST" ? "#FECACA" : "#E5E7EB"}`, borderRadius: "10px" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginBottom: "2px" }}>
+                          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#6B7280" }}>{bet.sport}</span>
+                          <span style={{ fontSize: "10px", color: "#9CA3AF" }}>@{bet.odds} · {bet.unit}U</span>
+                          <span style={{ fontSize: "9px", color: "#9CA3AF", background: "#F3F4F6", border: "1px solid #E5E7EB", padding: "1px 5px", borderRadius: "4px" }}>{bet.followers}/{bet.totalUsers} suivis</span>
+                        </div>
+                        <div style={{ fontSize: "13px", color: "#374151", lineHeight: 1.3 }}>{bet.description}</div>
+                      </div>
+                      <div style={{ flexShrink: 0 }}>
+                        {bet.status === "PENDING" && <span style={{ fontSize: "11px", color: "#2563EB", fontWeight: 700 }}>En cours</span>}
+                        {gl !== null && <span style={{ fontSize: "14px", fontWeight: 800, color: gl >= 0 ? "#16A34A" : "#DC2626" }}>{gl > 0 ? "+" : ""}{gl}U</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {periodBets.length === 0 && <div style={{ textAlign: "center", padding: "40px 0" }}><p style={{ fontSize: "14px", color: "#9CA3AF" }}>Aucun pari sur cette période</p></div>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -210,6 +380,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"users" | "bets" | "preview" | "montantes">("users");
   const [previewSelectedDay, setPreviewSelectedDay] = useState<string | null>(null);
+  const [previewSelectedPeriod, setPreviewSelectedPeriod] = useState<AdminPeriodKey | null>(null);
   const [montantes, setMontantes] = useState<AdminMontante[]>([]);
   const [montantesLoading, setMontantesLoading] = useState(true);
   const [montanteForm, setMontanteForm] = useState({ startDate: new Date().toISOString().split("T")[0], description: "" });
@@ -1170,14 +1341,32 @@ export default function AdminPage() {
 
           const selStats = previewSelectedDay ? previewDayStats(bets, previewSelectedDay) : null;
 
+          const periodFromMap: Record<AdminPeriodKey, Date> = {
+            day: startOfDay, week: startOfWeek, month: startOfMonth, all: new Date(0),
+          };
+          const periodLabelMap: Record<AdminPeriodKey, string> = {
+            day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", all: "Total",
+          };
+
           return (
             <div>
+              {/* Period detail modal */}
+              {previewSelectedPeriod && (
+                <AdminPeriodDetailModal
+                  periodKey={previewSelectedPeriod}
+                  label={periodLabelMap[previewSelectedPeriod]}
+                  from={periodFromMap[previewSelectedPeriod]}
+                  bets={bets}
+                  onClose={() => setPreviewSelectedPeriod(null)}
+                />
+              )}
+
               {/* Stats */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "24px" }}>
-                <PreviewStatCard label="Aujourd'hui" total={statsDay.total} count={statsDay.count} />
-                <PreviewStatCard label="Cette semaine" total={statsWeek.total} count={statsWeek.count} />
-                <PreviewStatCard label="Ce mois" total={statsMonth.total} count={statsMonth.count} />
-                <PreviewStatCard label="Total" total={statsAll.total} count={statsAll.count} isTotal />
+                <PreviewStatCard label="Aujourd'hui" total={statsDay.total} count={statsDay.count} onClick={() => setPreviewSelectedPeriod("day")} />
+                <PreviewStatCard label="Cette semaine" total={statsWeek.total} count={statsWeek.count} onClick={() => setPreviewSelectedPeriod("week")} />
+                <PreviewStatCard label="Ce mois" total={statsMonth.total} count={statsMonth.count} onClick={() => setPreviewSelectedPeriod("month")} />
+                <PreviewStatCard label="Total" total={statsAll.total} count={statsAll.count} isTotal onClick={() => setPreviewSelectedPeriod("all")} />
               </div>
 
               {/* Calendrier */}
