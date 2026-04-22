@@ -12,11 +12,22 @@ export const metadata: Metadata = {
   description:
     "PrognoBeast : pronostics football premium, value bets, gestion de bankroll et analyses expertes. Rejoignez la communauté qui performe sur le long terme.",
   keywords: ["pronostics football", "value bets", "bankroll management", "tipster premium", "PrognoBeast"],
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
   openGraph: {
     title: "PrognoBeast — Pronostics Sportifs Premium",
     description: "Analyses expertes, value bets et gestion de bankroll. Performez sur le long terme.",
     type: "website",
     locale: "fr_FR",
+    images: [{ url: "/og-image.png", width: 512, height: 512, alt: "PrognoBeast" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "PrognoBeast — Pronostics Sportifs Premium",
+    description: "Analyses expertes, value bets et gestion de bankroll.",
+    images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
 };
