@@ -42,6 +42,7 @@ interface Montante {
   status: string;
   following: boolean;
   initialStake: number | null;
+  stepOdds: Record<string, number> | null;
   steps: MontanteStep[];
   wonSteps: number;
   lostSteps: number;
@@ -459,15 +460,16 @@ function BetCard({ bet, onToggleFollow }: { bet: Bet; onToggleFollow: (id: strin
 
 // ── Montante calculator ───────────────────────────────────────────────────────
 
-function computeMontanteSteps(steps: MontanteStep[], initialStake: number) {
+function computeMontanteSteps(steps: MontanteStep[], initialStake: number, personalOdds?: Record<string, number>) {
   let running = initialStake;
   return steps.map((step) => {
+    const effectiveOdds = personalOdds?.[step.id] ?? step.odds;
     const betAmount = parseFloat(running.toFixed(2));
-    const potentialReturn = parseFloat((running * step.odds).toFixed(2));
+    const potentialReturn = parseFloat((running * effectiveOdds).toFixed(2));
     const profit = parseFloat((potentialReturn - betAmount).toFixed(2));
     if (step.status === "WON") running = potentialReturn;
     else if (step.status === "LOST") running = 0;
-    return { betAmount, potentialReturn, profit };
+    return { betAmount, potentialReturn, profit, effectiveOdds };
   });
 }
 
@@ -478,10 +480,15 @@ function MontanteCard({
   onParticipate,
 }: {
   montante: Montante;
-  onParticipate: (id: string, following: boolean, initialStake: number | null) => void;
+  onParticipate: (id: string, following: boolean, initialStake: number | null, stepOdds?: Record<string, number>) => void;
 }) {
   const [stakeInput, setStakeInput] = useState(
     montante.initialStake != null ? String(montante.initialStake) : ""
+  );
+  const [stepOddsInput, setStepOddsInput] = useState<Record<string, string>>(
+    () => Object.fromEntries(
+      montante.steps.map(s => [s.id, montante.stepOdds?.[s.id] != null ? String(montante.stepOdds[s.id]) : ""])
+    )
   );
   const [saving, setSaving] = useState(false);
 
@@ -494,7 +501,13 @@ function MontanteCard({
   const liveStake = stakeInput !== "" && !isNaN(Number(stakeInput)) && Number(stakeInput) > 0
     ? Number(stakeInput) : null;
 
-  const stepCalcs = liveStake ? computeMontanteSteps(montante.steps, liveStake) : null;
+  const personalOdds: Record<string, number> = {};
+  for (const [id, val] of Object.entries(stepOddsInput)) {
+    const n = Number(val);
+    if (val !== "" && !isNaN(n) && n > 1) personalOdds[id] = n;
+  }
+
+  const stepCalcs = liveStake ? computeMontanteSteps(montante.steps, liveStake, Object.keys(personalOdds).length ? personalOdds : undefined) : null;
 
   // Final potential if all steps win
   const finalPotential = stepCalcs && stepCalcs.length > 0
@@ -506,17 +519,30 @@ function MontanteCard({
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
+  function buildStepOddsPayload() {
+    const result: Record<string, number> = {};
+    for (const [id, val] of Object.entries(stepOddsInput)) {
+      const n = Number(val);
+      if (val !== "" && !isNaN(n) && n > 1) result[id] = n;
+    }
+    return Object.keys(result).length ? result : undefined;
+  }
+
   async function handleToggleFollow() {
     setSaving(true);
     const newFollowing = !montante.following;
-    const stake = liveStake;
-    onParticipate(montante.id, newFollowing, stake);
+    onParticipate(montante.id, newFollowing, liveStake, buildStepOddsPayload());
     setSaving(false);
   }
 
   function handleStakeBlur() {
     if (!montante.following) return;
-    onParticipate(montante.id, montante.following, liveStake);
+    onParticipate(montante.id, montante.following, liveStake, buildStepOddsPayload());
+  }
+
+  function handleStepOddsBlur(stepId: string) {
+    if (!montante.following) return;
+    onParticipate(montante.id, montante.following, liveStake, buildStepOddsPayload());
   }
 
   return (
@@ -665,28 +691,55 @@ function MontanteCard({
                       padding: "8px 14px",
                       background: sWon ? "#DCFCE7" : sLost ? "#FEE2E2" : "#F0F9FF",
                       borderTop: `1px solid ${sWon ? "#BBF7D0" : sLost ? "#FECACA" : "#BAE6FD"}`,
-                      display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px",
+                      display: "flex", flexDirection: "column", gap: "6px",
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      {/* Ma cote personnelle */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         <span style={{ fontSize: "11px", color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1", fontWeight: 600 }}>
-                          Mise :
+                          Ma cote :
                         </span>
-                        <span style={{ fontSize: "12px", fontWeight: 800, color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0C4A6E" }}>
-                          {calc.betAmount.toFixed(2)} €
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                        <span style={{ fontSize: "11px", color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1", fontWeight: 600 }}>
-                          {sWon ? "Récupéré :" : sLost ? "Perdu :" : "Si gagné →"}
-                        </span>
-                        <span style={{ fontSize: "14px", fontWeight: 800, color: sWon ? "#16A34A" : sLost ? "#DC2626" : "#0369A1" }}>
-                          {sLost ? `-${calc.betAmount.toFixed(2)} €` : `${calc.potentialReturn.toFixed(2)} €`}
-                        </span>
-                        {!sLost && (
-                          <span style={{ fontSize: "10px", fontWeight: 700, color: sWon ? "#16A34A" : "#0369A1", background: sWon ? "#F0FDF4" : "#E0F2FE", padding: "1px 5px", borderRadius: "4px" }}>
-                            +{calc.profit.toFixed(2)} €
-                          </span>
+                        <input
+                          type="number"
+                          min="1.01"
+                          step="0.01"
+                          placeholder={String(step.odds)}
+                          value={stepOddsInput[step.id] ?? ""}
+                          onChange={e => setStepOddsInput(prev => ({ ...prev, [step.id]: e.target.value }))}
+                          onBlur={() => handleStepOddsBlur(step.id)}
+                          style={{
+                            width: "72px", padding: "3px 6px", borderRadius: "6px",
+                            border: `1px solid ${sWon ? "#86EFAC" : sLost ? "#FCA5A5" : "#7DD3FC"}`,
+                            background: "white", fontSize: "12px", fontWeight: 700,
+                            color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1",
+                            outline: "none", textAlign: "right",
+                          }}
+                        />
+                        {stepOddsInput[step.id] && Number(stepOddsInput[step.id]) > 1 && Number(stepOddsInput[step.id]) !== step.odds && (
+                          <span style={{ fontSize: "10px", color: "#9CA3AF" }}>(officielle : @{step.odds})</span>
                         )}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ fontSize: "11px", color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1", fontWeight: 600 }}>
+                            Mise :
+                          </span>
+                          <span style={{ fontSize: "12px", fontWeight: 800, color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0C4A6E" }}>
+                            {calc.betAmount.toFixed(2)} €
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ fontSize: "11px", color: sWon ? "#15803D" : sLost ? "#B91C1C" : "#0369A1", fontWeight: 600 }}>
+                            {sWon ? "Récupéré :" : sLost ? "Perdu :" : "Si gagné →"}
+                          </span>
+                          <span style={{ fontSize: "14px", fontWeight: 800, color: sWon ? "#16A34A" : sLost ? "#DC2626" : "#0369A1" }}>
+                            {sLost ? `-${calc.betAmount.toFixed(2)} €` : `${calc.potentialReturn.toFixed(2)} €`}
+                          </span>
+                          {!sLost && (
+                            <span style={{ fontSize: "10px", fontWeight: 700, color: sWon ? "#16A34A" : "#0369A1", background: sWon ? "#F0FDF4" : "#E0F2FE", padding: "1px 5px", borderRadius: "4px" }}>
+                              +{calc.profit.toFixed(2)} €
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -786,14 +839,14 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleParticipate(montanteId: string, following: boolean, initialStake: number | null) {
+  async function handleParticipate(montanteId: string, following: boolean, initialStake: number | null, stepOdds?: Record<string, number>) {
     if (!token) return;
-    setMontantes(prev => prev.map(m => m.id === montanteId ? { ...m, following, initialStake } : m));
+    setMontantes(prev => prev.map(m => m.id === montanteId ? { ...m, following, initialStake, stepOdds: stepOdds ?? m.stepOdds } : m));
     try {
       await fetch(`${API_URL}/api/montantes/${montanteId}/participate`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ following, initialStake }),
+        body: JSON.stringify({ following, initialStake, ...(stepOdds !== undefined && { stepOdds }) }),
       });
     } catch { /* silent */ }
   }
