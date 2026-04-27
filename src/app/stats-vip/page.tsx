@@ -43,8 +43,6 @@ function StatCard({ label, data, isTotal }: { label: string; data: { total: numb
   const isPos = data.total > 0;
   const isNeg = data.total < 0;
   const color = isPos ? "#16A34A" : isNeg ? "#DC2626" : "#6B7280";
-  const winRate = data.count > 0 ? Math.round((data.won / data.count) * 100) : null;
-
   return (
     <div style={{
       background: isTotal ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "white",
@@ -72,11 +70,6 @@ function StatCard({ label, data, isTotal }: { label: string; data: { total: numb
           {data.pending > 0 && (
             <span style={{ fontSize: "11px", fontWeight: 700, color: isTotal ? "rgba(255,255,255,0.7)" : "#2563EB", background: isTotal ? "rgba(255,255,255,0.15)" : "#EFF6FF", padding: "1px 7px", borderRadius: "999px", border: isTotal ? "none" : "1px solid #BFDBFE" }}>
               {data.pending} en cours
-            </span>
-          )}
-          {winRate !== null && (
-            <span style={{ fontSize: "11px", fontWeight: 700, color: isTotal ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
-              {winRate}% win
             </span>
           )}
         </div>
