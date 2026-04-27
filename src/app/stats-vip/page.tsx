@@ -9,8 +9,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface BetEntry {
   createdAt: string;
-  status: "WON" | "LOST";
-  gainLoss: number;
+  status: "WON" | "LOST" | "PENDING";
+  gainLoss: number | null;
 }
 
 function toDateKey(d: Date) {
@@ -24,10 +24,11 @@ function computePeriods(bets: BetEntry[]) {
   const sm = new Date(now.getFullYear(), now.getMonth(), 1);
 
   function calc(from: Date) {
-    const filtered = bets.filter(b => new Date(b.createdAt) >= from);
-    const total = parseFloat(filtered.reduce((acc, b) => acc + b.gainLoss, 0).toFixed(2));
-    const won = filtered.filter(b => b.status === "WON").length;
-    return { total, count: filtered.length, won };
+    const settled = bets.filter(b => b.status !== "PENDING" && new Date(b.createdAt) >= from);
+    const pending = bets.filter(b => b.status === "PENDING" && new Date(b.createdAt) >= from);
+    const total = parseFloat(settled.reduce((acc, b) => acc + (b.gainLoss ?? 0), 0).toFixed(2));
+    const won = settled.filter(b => b.status === "WON").length;
+    return { total, count: settled.length, won, pending: pending.length };
   }
 
   return {
@@ -38,7 +39,7 @@ function computePeriods(bets: BetEntry[]) {
   };
 }
 
-function StatCard({ label, data, isTotal }: { label: string; data: { total: number; count: number; won: number }; isTotal?: boolean }) {
+function StatCard({ label, data, isTotal }: { label: string; data: { total: number; count: number; won: number; pending: number }; isTotal?: boolean }) {
   const isPos = data.total > 0;
   const isNeg = data.total < 0;
   const color = isPos ? "#16A34A" : isNeg ? "#DC2626" : "#6B7280";
@@ -63,15 +64,22 @@ function StatCard({ label, data, isTotal }: { label: string; data: { total: numb
         {!isTotal && isPos && <TrendingUp size={18} style={{ color }} />}
         {!isTotal && isNeg && <TrendingDown size={18} style={{ color }} />}
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "12px", color: isTotal ? "rgba(255,255,255,0.6)" : "#9CA3AF" }}>
-          {data.count} pari{data.count !== 1 ? "s" : ""} joué{data.count !== 1 ? "s" : ""}
+          {data.count} terminé{data.count !== 1 ? "s" : ""}
         </span>
-        {winRate !== null && (
-          <span style={{ fontSize: "11px", fontWeight: 700, color: isTotal ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
-            {winRate}% win
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {data.pending > 0 && (
+            <span style={{ fontSize: "11px", fontWeight: 700, color: isTotal ? "rgba(255,255,255,0.7)" : "#2563EB", background: isTotal ? "rgba(255,255,255,0.15)" : "#EFF6FF", padding: "1px 7px", borderRadius: "999px", border: isTotal ? "none" : "1px solid #BFDBFE" }}>
+              {data.pending} en cours
+            </span>
+          )}
+          {winRate !== null && (
+            <span style={{ fontSize: "11px", fontWeight: 700, color: isTotal ? "rgba(255,255,255,0.7)" : "#6B7280" }}>
+              {winRate}% win
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -94,12 +102,16 @@ function Calendar({ bets }: { bets: BetEntry[] }) {
   const todayKey = toDateKey(today);
 
   // Build day map
-  const dayMap: Record<string, { total: number; hasBets: boolean }> = {};
+  const dayMap: Record<string, { total: number; hasBets: boolean; hasPending: boolean }> = {};
   for (const b of bets) {
     const key = toDateKey(new Date(b.createdAt));
-    if (!dayMap[key]) dayMap[key] = { total: 0, hasBets: false };
-    dayMap[key].total = parseFloat((dayMap[key].total + b.gainLoss).toFixed(2));
+    if (!dayMap[key]) dayMap[key] = { total: 0, hasBets: false, hasPending: false };
     dayMap[key].hasBets = true;
+    if (b.status === "PENDING") {
+      dayMap[key].hasPending = true;
+    } else {
+      dayMap[key].total = parseFloat((dayMap[key].total + (b.gainLoss ?? 0)).toFixed(2));
+    }
   }
 
   function prevMonth() {
@@ -138,6 +150,7 @@ function Calendar({ bets }: { bets: BetEntry[] }) {
           const isFuture = date > today;
           const isPos = (day?.total ?? 0) > 0;
           const isNeg = (day?.total ?? 0) < 0;
+          const hasPending = day?.hasPending ?? false;
 
           return (
             <div key={key} style={{
@@ -147,7 +160,9 @@ function Calendar({ bets }: { bets: BetEntry[] }) {
             }}>
               <span style={{ fontSize: "13px", fontWeight: isToday ? 800 : 500, color: isToday ? "#2563EB" : isFuture ? "#D1D5DB" : "#374151", lineHeight: 1 }}>{date.getDate()}</span>
               {day?.hasBets && (
-                (isPos || isNeg) ? (
+                hasPending && !isPos && !isNeg ? (
+                  <span style={{ fontSize: "9px", fontWeight: 700, color: "#2563EB", lineHeight: 1 }}>•</span>
+                ) : (isPos || isNeg) ? (
                   <span style={{ fontSize: "9px", fontWeight: 800, lineHeight: 1, color: isPos ? "#16A34A" : "#DC2626", background: isPos ? "#F0FDF4" : "#FEF2F2", padding: "1px 4px", borderRadius: "4px" }}>
                     {isPos ? "+" : ""}{day.total}U
                   </span>
@@ -168,11 +183,17 @@ export default function StatsVipPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/stats/vip`)
-      .then(r => r.json())
-      .then(d => { if (d.success) setBets(d.data); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    function fetchStats() {
+      fetch(`${API_URL}/api/stats/vip`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setBets(d.data); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
   const periods = computePeriods(bets);
