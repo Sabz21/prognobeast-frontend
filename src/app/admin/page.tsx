@@ -653,6 +653,128 @@ export default function AdminPage() {
 
   const pendingUsers = users.filter(u => u.status === "PENDING");
 
+  function downloadMonthStats(monthKey: string, monthLabel: string, allBets: AdminBet[]) {
+    const [y, m] = monthKey.split("-").map(Number);
+    const from = new Date(y, m - 1, 1);
+    const to = new Date(y, m, 1);
+    const monthBets = allBets.filter(b => {
+      const d = new Date(b.createdAt);
+      return d >= from && d < to && b.status !== "PENDING";
+    });
+    const total = parseFloat(monthBets.reduce((acc, b) => acc + (betGainLoss(b) ?? 0), 0).toFixed(2));
+    const won = monthBets.filter(b => b.status === "WON").length;
+    const lost = monthBets.filter(b => b.status === "LOST").length;
+    const winRate = monthBets.length > 0 ? Math.round((won / monthBets.length) * 100) : 0;
+    const isPos = total > 0;
+
+    // Day map for mini-chart
+    const dayMap: Record<string, number> = {};
+    for (const b of monthBets) {
+      const dk = toDateKey(new Date(b.createdAt));
+      dayMap[dk] = parseFloat(((dayMap[dk] ?? 0) + (betGainLoss(b) ?? 0)).toFixed(2));
+    }
+    const dayEntries = Object.entries(dayMap).sort(([a], [b]) => a.localeCompare(b));
+
+    const W = 900, H = 520;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#0F172A"); bg.addColorStop(1, "#1E3A8A");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // Decorative circles
+    ctx.beginPath(); ctx.arc(820, 100, 150, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(96,165,250,0.07)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(60, 440, 90, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(96,165,250,0.05)"; ctx.fill();
+
+    // Header
+    ctx.textAlign = "left";
+    ctx.font = "bold 13px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillText("PROGNOBEAST — STATS VIP", 48, 52);
+
+    ctx.font = "bold 44px Impact, sans-serif";
+    ctx.fillStyle = "white";
+    ctx.fillText(monthLabel.toUpperCase(), 48, 102);
+
+    // Separator
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.fillRect(48, 116, W - 96, 1);
+
+    // Big P&L
+    ctx.textAlign = "left";
+    ctx.font = "bold 86px Impact, sans-serif";
+    ctx.fillStyle = isPos ? "#4ADE80" : "#F87171";
+    ctx.fillText(`${isPos ? "+" : ""}${total}U`, 48, 220);
+
+    // Sub label
+    ctx.font = "bold 16px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText(`${monthBets.length} paris terminés · ${winRate}% de réussite`, 48, 248);
+
+    // Stats boxes
+    const boxes = [
+      { label: "Gagnés", value: String(won), color: "#4ADE80" },
+      { label: "Perdus", value: String(lost), color: "#F87171" },
+      { label: "Win rate", value: `${winRate}%`, color: "white" },
+    ];
+    boxes.forEach((box, i) => {
+      const bx = 48 + i * 200, by = 280;
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.beginPath();
+      (ctx as CanvasRenderingContext2D).roundRect?.(bx, by, 178, 80, 12);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      (ctx as CanvasRenderingContext2D).roundRect?.(bx, by, 178, 80, 12);
+      ctx.stroke();
+      ctx.font = "bold 32px Impact, sans-serif";
+      ctx.fillStyle = box.color;
+      ctx.textAlign = "center";
+      ctx.fillText(box.value, bx + 89, by + 42);
+      ctx.font = "bold 12px Arial, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.fillText(box.label.toUpperCase(), bx + 89, by + 64);
+    });
+
+    // Mini bar chart (right side)
+    if (dayEntries.length > 0) {
+      const chartX = 680, chartY = 280, chartW = 172, chartH = 80;
+      const maxAbs = Math.max(...dayEntries.map(([, v]) => Math.abs(v)), 0.1);
+      const barW = Math.max(4, Math.floor((chartW - dayEntries.length) / dayEntries.length));
+      const midY = chartY + chartH / 2;
+      dayEntries.forEach(([, val], i) => {
+        const barH = Math.max(2, Math.abs(val / maxAbs) * (chartH / 2 - 4));
+        const bx = chartX + i * (barW + 1);
+        ctx.fillStyle = val >= 0 ? "#4ADE80" : "#F87171";
+        if (val >= 0) ctx.fillRect(bx, midY - barH, barW, barH);
+        else ctx.fillRect(bx, midY, barW, barH);
+      });
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.fillRect(chartX, midY, chartW, 1);
+      ctx.font = "bold 10px Arial, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.textAlign = "center";
+      ctx.fillText("ÉVOLUTION", chartX + chartW / 2, chartY + chartH + 16);
+    }
+
+    // Footer branding
+    ctx.textAlign = "center";
+    ctx.font = "bold 14px Impact, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillText("PrognoBeast — prognobeast.com", W / 2, H - 18);
+
+    const link = document.createElement("a");
+    link.download = `stats-vip-${monthKey}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
   function downloadPodium(top3: LeaderboardEntry[], periodLabel: string) {
     const W = 900, H = 540;
     const canvas = document.createElement("canvas");
@@ -1501,6 +1623,54 @@ export default function AdminPage() {
                 <PreviewStatCard label="Ce mois" total={statsMonth.total} count={statsMonth.count} onClick={() => setPreviewSelectedPeriod("month")} />
                 <PreviewStatCard label="Total" total={statsAll.total} count={statsAll.count} isTotal onClick={() => setPreviewSelectedPeriod("all")} />
               </div>
+
+              {/* Télécharger stats d'un mois */}
+              {(() => {
+                const mNames = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+                const months: { value: string; label: string }[] = [];
+                const s = new Date(2026, 3, 1);
+                const nowM = new Date();
+                for (let c = new Date(s); c <= new Date(nowM.getFullYear(), nowM.getMonth(), 1); c = new Date(c.getFullYear(), c.getMonth() + 1, 1)) {
+                  months.push({ value: `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,"0")}`, label: `${mNames[c.getMonth()]} ${c.getFullYear()}` });
+                }
+                months.reverse();
+                const defaultM = months[0]?.value ?? "";
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px", background: "white", borderRadius: "14px", padding: "12px 16px", border: "1px solid #E5E7EB" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>Télécharger</span>
+                    <select
+                      id="dl-month-select"
+                      defaultValue={defaultM}
+                      style={{
+                        flex: 1, padding: "8px 12px", borderRadius: "10px",
+                        border: "1px solid #E5E7EB", background: "#F9FAFB",
+                        fontSize: "14px", fontWeight: 600, color: "#111827",
+                        outline: "none", cursor: "pointer",
+                      }}
+                    >
+                      {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const sel = (document.getElementById("dl-month-select") as HTMLSelectElement);
+                        const val = sel?.value ?? defaultM;
+                        const label = months.find(m => m.value === val)?.label ?? val;
+                        downloadMonthStats(val, label, bets);
+                      }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "6px",
+                        background: "linear-gradient(135deg, #2563EB, #1D4ED8)", color: "white",
+                        fontSize: "13px", fontWeight: 700, padding: "9px 18px",
+                        borderRadius: "10px", border: "none", cursor: "pointer",
+                        boxShadow: "0 2px 8px rgba(37,99,235,0.3)", flexShrink: 0,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      ⬇ PNG
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Calendrier */}
               <PreviewCalendar bets={bets} selectedDay={previewSelectedDay} onSelectDay={setPreviewSelectedDay} />
