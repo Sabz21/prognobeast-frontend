@@ -664,8 +664,12 @@ export default function AdminPage() {
     const total = parseFloat(monthBets.reduce((acc, b) => acc + (betGainLoss(b) ?? 0), 0).toFixed(2));
     const won = monthBets.filter(b => b.status === "WON").length;
     const lost = monthBets.filter(b => b.status === "LOST").length;
-    const winRate = monthBets.length > 0 ? Math.round((won / monthBets.length) * 100) : 0;
     const isPos = total > 0;
+
+    const bestBet = [...monthBets].sort((a, b) => (betGainLoss(b) ?? 0) - (betGainLoss(a) ?? 0))[0] ?? null;
+    const worstBet = [...monthBets].sort((a, b) => (betGainLoss(a) ?? 0) - (betGainLoss(b) ?? 0))[0] ?? null;
+    const bestGL = bestBet ? (betGainLoss(bestBet) ?? 0) : null;
+    const worstGL = worstBet ? (betGainLoss(worstBet) ?? 0) : null;
 
     // Day map for mini-chart
     const dayMap: Record<string, number> = {};
@@ -714,13 +718,12 @@ export default function AdminPage() {
     // Sub label
     ctx.font = "bold 16px Arial, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.fillText(`${monthBets.length} paris terminés · ${winRate}% de réussite`, 48, 248);
+    ctx.fillText(`${monthBets.length} paris terminés`, 48, 248);
 
-    // Stats boxes
+    // Stats boxes: Gagnés, Perdus (left side, stacked horizontally)
     const boxes = [
       { label: "Gagnés", value: String(won), color: "#4ADE80" },
       { label: "Perdus", value: String(lost), color: "#F87171" },
-      { label: "Win rate", value: `${winRate}%`, color: "white" },
     ];
     boxes.forEach((box, i) => {
       const bx = 48 + i * 200, by = 280;
@@ -741,6 +744,35 @@ export default function AdminPage() {
       ctx.fillStyle = "rgba(255,255,255,0.45)";
       ctx.fillText(box.label.toUpperCase(), bx + 89, by + 64);
     });
+
+    // Best & worst bet rows
+    const bestLabel = bestBet ? `${bestBet.sport} — ${bestBet.description.slice(0, 30)}${bestBet.description.length > 30 ? "…" : ""}` : "—";
+    const worstLabel = worstBet ? `${worstBet.sport} — ${worstBet.description.slice(0, 30)}${worstBet.description.length > 30 ? "…" : ""}` : "—";
+    const bestValStr = bestGL != null ? `${bestGL > 0 ? "+" : ""}${bestGL}U` : "—";
+    const worstValStr = worstGL != null ? `${worstGL > 0 ? "+" : ""}${worstGL}U` : "—";
+
+    // Best bet row
+    ctx.textAlign = "left";
+    ctx.font = "bold 11px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillText("MEILLEUR PARI", 48, 384);
+    ctx.font = "bold 13px Arial, sans-serif";
+    ctx.fillStyle = "#4ADE80";
+    ctx.fillText(bestValStr, 48, 402);
+    ctx.font = "13px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fillText(bestLabel, 120, 402);
+
+    // Worst bet row
+    ctx.font = "bold 11px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillText("PIRE PARI", 48, 426);
+    ctx.font = "bold 13px Arial, sans-serif";
+    ctx.fillStyle = "#F87171";
+    ctx.fillText(worstValStr, 48, 444);
+    ctx.font = "13px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.fillText(worstLabel, 120, 444);
 
     // Mini bar chart (right side)
     if (dayEntries.length > 0) {
