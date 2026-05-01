@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, TrendingUp, TrendingDown, Plus, CheckCircle2, XCircle,
   Clock, Trash2, LogOut, ShieldCheck, Trophy, Pencil, X,
-  Eye, ChevronLeft, ChevronRight, CalendarDays, Layers,
+  Eye, ChevronLeft, ChevronRight, CalendarDays, Layers, BarChart2,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -52,6 +52,16 @@ interface AdminMontante {
   steps: AdminMontanteStep[];
   totalUsers: number;
   followers: number;
+}
+
+interface LeaderboardEntry {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  followedCount: number;
+  wonCount: number;
+  lostCount: number;
+  totalUnits: number;
 }
 
 // ── helpers partagés ─────────────────────────────────────────────────────────
@@ -378,7 +388,7 @@ const inp: React.CSSProperties = {
 export default function AdminPage() {
   const { user, token, logout, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"users" | "bets" | "preview" | "montantes">("users");
+  const [tab, setTab] = useState<"users" | "bets" | "preview" | "montantes" | "classement">("users");
   const [previewSelectedDay, setPreviewSelectedDay] = useState<string | null>(null);
   const [previewSelectedPeriod, setPreviewSelectedPeriod] = useState<AdminPeriodKey | null>(null);
   const [montantes, setMontantes] = useState<AdminMontante[]>([]);
@@ -406,6 +416,9 @@ export default function AdminPage() {
   const [editingBet, setEditingBet] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ sport: "", description: "", odds: "", unit: "" });
   const [editSaving, setEditSaving] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [lbLoading, setLbLoading] = useState(false);
+  const [lbPeriod, setLbPeriod] = useState<"day" | "week" | "month" | "all">("all");
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -440,7 +453,20 @@ export default function AdminPage() {
     } catch { /* silent */ } finally { setMontantesLoading(false); }
   }, [token]);
 
+  const fetchLeaderboard = useCallback(async (period: "day" | "week" | "month" | "all" = "all") => {
+    if (!token) return;
+    setLbLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/leaderboard?period=${period}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setLeaderboard(data.data);
+    } catch { /* silent */ } finally { setLbLoading(false); }
+  }, [token]);
+
   useEffect(() => { if (token) { fetchUsers(); fetchBets(); fetchMontantes(); } }, [token, fetchUsers, fetchBets, fetchMontantes]);
+  useEffect(() => { if (token) fetchLeaderboard(lbPeriod); }, [token, lbPeriod, fetchLeaderboard]);
 
   async function handleApprove(id: string) {
     if (!token) return;
@@ -622,6 +648,107 @@ export default function AdminPage() {
 
   const pendingUsers = users.filter(u => u.status === "PENDING");
 
+  function downloadPodium(top3: LeaderboardEntry[], periodLabel: string) {
+    const W = 900, H = 540;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#0F172A"); bg.addColorStop(1, "#1E3A8A");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // Decorative circles
+    ctx.beginPath(); ctx.arc(820, 80, 120, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(96,165,250,0.08)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(80, 460, 80, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(96,165,250,0.06)"; ctx.fill();
+
+    // Title
+    ctx.textAlign = "center";
+    ctx.font = "bold 38px 'Bebas Neue', Impact, sans-serif";
+    ctx.fillStyle = "white";
+    ctx.fillText("CLASSEMENT MEMBRES", W / 2, 60);
+    ctx.font = "bold 14px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillText(periodLabel.toUpperCase(), W / 2, 86);
+
+    // Separator
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fillRect(W/2 - 120, 98, 240, 1);
+
+    // Podium data: index 0=2nd(left), 1=1st(center), 2=3rd(right)
+    const slots = [
+      { entry: top3[1], x: 195, blockH: 130, color: "#94A3B8", rankLabel: "#2", rankColor: "#CBD5E1" },
+      { entry: top3[0], x: 450, blockH: 190, color: "#F59E0B", rankLabel: "#1", rankColor: "#FCD34D" },
+      { entry: top3[2], x: 705, blockH: 90, color: "#CD7F32", rankLabel: "#3", rankColor: "#D97706" },
+    ];
+    const baseY = 430;
+
+    for (const slot of slots) {
+      if (!slot.entry) continue;
+      const { x, blockH, color, rankLabel, rankColor, entry } = slot;
+      const blockX = x - 110;
+      const blockY = baseY - blockH;
+
+      // Block shadow
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(blockX + 4, blockY + 4, 220, blockH);
+
+      // Block fill
+      const blockGrad = ctx.createLinearGradient(blockX, blockY, blockX, baseY);
+      blockGrad.addColorStop(0, color + "55");
+      blockGrad.addColorStop(1, color + "22");
+      ctx.fillStyle = blockGrad;
+      ctx.fillRect(blockX, blockY, 220, blockH);
+
+      // Block border
+      ctx.strokeStyle = color + "BB";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(blockX, blockY, 220, blockH);
+
+      // Rank in block center
+      ctx.font = "bold 52px Impact, sans-serif";
+      ctx.fillStyle = rankColor + "99";
+      ctx.textAlign = "center";
+      ctx.fillText(rankLabel, x, baseY - 12);
+
+      // Units above block
+      const isPos = entry.totalUnits >= 0;
+      ctx.font = "bold 22px Arial, sans-serif";
+      ctx.fillStyle = isPos ? "#4ADE80" : "#F87171";
+      ctx.fillText(`${isPos ? "+" : ""}${entry.totalUnits}U`, x, blockY - 58);
+
+      // Name
+      ctx.font = "bold 17px Arial, sans-serif";
+      ctx.fillStyle = "white";
+      const fullName = `${entry.firstName} ${entry.lastName}`;
+      ctx.fillText(fullName, x, blockY - 32);
+
+      // Followed count
+      ctx.font = "13px Arial, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillText(`${entry.followedCount} paris suivis`, x, blockY - 10);
+    }
+
+    // Base platform
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fillRect(40, baseY, W - 80, 8);
+
+    // Branding footer
+    ctx.font = "bold 16px Impact, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.textAlign = "center";
+    ctx.fillText("PrognoBeast — prognobeast.com", W / 2, H - 16);
+
+    // Download
+    const link = document.createElement("a");
+    link.download = `classement-${periodLabel.toLowerCase().replace(/\s+/g, "-")}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#F9FAFB" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -677,8 +804,9 @@ export default function AdminPage() {
             { key: "bets", label: "Paris", Icon: TrendingUp, badge: 0 },
             { key: "montantes", label: "Montantes", Icon: Layers, badge: montantes.filter(m => m.status === "ACTIVE").length },
             { key: "preview", label: "Aperçu VIP", Icon: Eye, badge: 0 },
+            { key: "classement", label: "Classement", Icon: BarChart2, badge: 0 },
           ].map(({ key, label, Icon, badge }) => (
-            <button key={key} onClick={() => setTab(key as "users" | "bets" | "montantes" | "preview")} style={{
+            <button key={key} onClick={() => setTab(key as "users" | "bets" | "montantes" | "preview" | "classement")} style={{
               flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               padding: "10px 8px", borderRadius: "10px", border: "none", cursor: "pointer",
               fontSize: "13px", fontWeight: 700, transition: "all 0.15s",
@@ -1443,6 +1571,179 @@ export default function AdminPage() {
                     );
                   })}
                 </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ══ CLASSEMENT ══ */}
+        {tab === "classement" && (() => {
+          const top3 = leaderboard.slice(0, 3);
+          const periodLabels: Record<string, string> = { day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", all: "Tout le temps" };
+          const periodLabel = periodLabels[lbPeriod];
+
+          return (
+            <div>
+              {/* Period filter */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "24px", background: "white", borderRadius: "12px", padding: "6px", border: "1px solid #E5E7EB" }}>
+                {(["day", "week", "month", "all"] as const).map(p => (
+                  <button key={p} onClick={() => setLbPeriod(p)} style={{
+                    flex: 1, padding: "8px 4px", borderRadius: "8px", border: "none",
+                    fontSize: "13px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
+                    background: lbPeriod === p ? "#2563EB" : "transparent",
+                    color: lbPeriod === p ? "white" : "#6B7280",
+                  }}>
+                    {periodLabels[p]}
+                  </button>
+                ))}
+              </div>
+
+              {lbLoading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #2563EB", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                </div>
+              ) : leaderboard.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "60px", background: "white", borderRadius: "16px", border: "1px solid #E5E7EB" }}>
+                  <BarChart2 size={40} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
+                  <p style={{ fontSize: "15px", fontWeight: 600, color: "#374151" }}>Aucune donnée sur cette période</p>
+                  <p style={{ fontSize: "13px", color: "#9CA3AF", marginTop: "4px" }}>Les membres doivent avoir suivi au moins un pari terminé.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Podium top 3 */}
+                  {top3.length > 0 && (
+                    <div style={{ background: "linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%)", borderRadius: "20px", padding: "28px 24px 24px", marginBottom: "16px", boxShadow: "0 8px 32px rgba(15,23,42,0.4)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+                        <div>
+                          <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>Top 3 — {periodLabel}</p>
+                          <h2 style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: "28px", letterSpacing: "0.06em", color: "white", lineHeight: 1 }}>Classement</h2>
+                        </div>
+                        <button
+                          onClick={() => downloadPodium(top3, periodLabel)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "6px",
+                            background: "rgba(255,255,255,0.12)", color: "white",
+                            fontSize: "12px", fontWeight: 600, padding: "9px 16px",
+                            borderRadius: "10px", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
+                        >
+                          ⬇ Télécharger image
+                        </button>
+                      </div>
+
+                      {/* Podium visual */}
+                      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "12px", marginBottom: "8px" }}>
+                        {/* 2nd place */}
+                        {top3[1] && (
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                            <div style={{ fontSize: "22px", fontWeight: 900, color: "#4ADE80" }}>
+                              {top3[1].totalUnits >= 0 ? "+" : ""}{top3[1].totalUnits}U
+                            </div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: "white", textAlign: "center" }}>
+                              {top3[1].firstName} {top3[1].lastName}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)" }}>{top3[1].followedCount} paris</div>
+                            <div style={{
+                              width: "100%", borderRadius: "10px 10px 0 0", padding: "20px 0",
+                              background: "rgba(148,163,184,0.2)", border: "1px solid rgba(148,163,184,0.4)",
+                              borderBottom: "none", textAlign: "center",
+                              fontSize: "32px",
+                            }}>🥈</div>
+                          </div>
+                        )}
+                        {/* 1st place */}
+                        {top3[0] && (
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                            <div style={{ fontSize: "26px", fontWeight: 900, color: "#4ADE80" }}>
+                              {top3[0].totalUnits >= 0 ? "+" : ""}{top3[0].totalUnits}U
+                            </div>
+                            <div style={{ fontSize: "14px", fontWeight: 700, color: "white", textAlign: "center" }}>
+                              {top3[0].firstName} {top3[0].lastName}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)" }}>{top3[0].followedCount} paris</div>
+                            <div style={{
+                              width: "100%", borderRadius: "10px 10px 0 0", padding: "30px 0",
+                              background: "rgba(245,158,11,0.2)", border: "1px solid rgba(245,158,11,0.4)",
+                              borderBottom: "none", textAlign: "center",
+                              fontSize: "38px",
+                            }}>🥇</div>
+                          </div>
+                        )}
+                        {/* 3rd place */}
+                        {top3[2] && (
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                            <div style={{ fontSize: "22px", fontWeight: 900, color: top3[2].totalUnits >= 0 ? "#4ADE80" : "#F87171" }}>
+                              {top3[2].totalUnits >= 0 ? "+" : ""}{top3[2].totalUnits}U
+                            </div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: "white", textAlign: "center" }}>
+                              {top3[2].firstName} {top3[2].lastName}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)" }}>{top3[2].followedCount} paris</div>
+                            <div style={{
+                              width: "100%", borderRadius: "10px 10px 0 0", padding: "14px 0",
+                              background: "rgba(205,127,50,0.2)", border: "1px solid rgba(205,127,50,0.4)",
+                              borderBottom: "none", textAlign: "center",
+                              fontSize: "28px",
+                            }}>🥉</div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Base */}
+                      <div style={{ height: "8px", background: "rgba(255,255,255,0.08)", borderRadius: "4px" }} />
+                    </div>
+                  )}
+
+                  {/* Full ranking list */}
+                  <div style={{ background: "white", borderRadius: "16px", border: "1px solid #E5E7EB", overflow: "hidden" }}>
+                    <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#9CA3AF" }}>Classement complet</p>
+                      <p style={{ fontSize: "12px", color: "#9CA3AF" }}>{leaderboard.length} membre{leaderboard.length !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      {leaderboard.map((entry, idx) => {
+                        const isPos = entry.totalUnits > 0;
+                        const isNeg = entry.totalUnits < 0;
+                        const medals = ["🥇", "🥈", "🥉"];
+                        return (
+                          <div key={entry.userId} style={{
+                            display: "flex", alignItems: "center", gap: "14px", padding: "14px 20px",
+                            borderBottom: idx < leaderboard.length - 1 ? "1px solid #F3F4F6" : "none",
+                            background: idx === 0 ? "linear-gradient(90deg, #FFFBEB, white)" : idx === 1 ? "linear-gradient(90deg, #F8FAFC, white)" : "white",
+                          }}>
+                            <div style={{ width: "32px", textAlign: "center", flexShrink: 0 }}>
+                              {idx < 3 ? (
+                                <span style={{ fontSize: "20px" }}>{medals[idx]}</span>
+                              ) : (
+                                <span style={{ fontSize: "14px", fontWeight: 800, color: "#9CA3AF" }}>#{idx + 1}</span>
+                              )}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                                {entry.firstName} {entry.lastName}
+                              </div>
+                              <div style={{ fontSize: "12px", color: "#9CA3AF", marginTop: "2px" }}>
+                                {entry.followedCount} paris · {entry.wonCount}W / {entry.lostCount}L
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              <div style={{ fontSize: "18px", fontWeight: 800, color: isPos ? "#16A34A" : isNeg ? "#DC2626" : "#6B7280" }}>
+                                {isPos ? "+" : ""}{entry.totalUnits}U
+                              </div>
+                              {entry.followedCount > 0 && (
+                                <div style={{ fontSize: "11px", color: "#9CA3AF", marginTop: "2px" }}>
+                                  {Math.round((entry.wonCount / entry.followedCount) * 100)}% win
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           );
