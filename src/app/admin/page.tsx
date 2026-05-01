@@ -418,7 +418,11 @@ export default function AdminPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [lbLoading, setLbLoading] = useState(false);
-  const [lbPeriod, setLbPeriod] = useState<"day" | "week" | "month" | "all">("all");
+  const [lbPeriod, setLbPeriod] = useState<"day" | "week" | "month" | "all" | "specificMonth">("all");
+  const [lbMonth, setLbMonth] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+  });
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -453,20 +457,21 @@ export default function AdminPage() {
     } catch { /* silent */ } finally { setMontantesLoading(false); }
   }, [token]);
 
-  const fetchLeaderboard = useCallback(async (period: "day" | "week" | "month" | "all" = "all") => {
+  const fetchLeaderboard = useCallback(async (period: "day" | "week" | "month" | "all" | "specificMonth" = "all", month?: string) => {
     if (!token) return;
     setLbLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/leaderboard?period=${period}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const url = period === "specificMonth" && month
+        ? `${API_URL}/api/admin/leaderboard?period=specificMonth&month=${month}`
+        : `${API_URL}/api/admin/leaderboard?period=${period}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setLeaderboard(data.data);
     } catch { /* silent */ } finally { setLbLoading(false); }
   }, [token]);
 
   useEffect(() => { if (token) { fetchUsers(); fetchBets(); fetchMontantes(); } }, [token, fetchUsers, fetchBets, fetchMontantes]);
-  useEffect(() => { if (token) fetchLeaderboard(lbPeriod); }, [token, lbPeriod, fetchLeaderboard]);
+  useEffect(() => { if (token) fetchLeaderboard(lbPeriod, lbMonth); }, [token, lbPeriod, lbMonth, fetchLeaderboard]);
 
   async function handleApprove(id: string) {
     if (!token) return;
@@ -1579,14 +1584,26 @@ export default function AdminPage() {
         {/* ══ CLASSEMENT ══ */}
         {tab === "classement" && (() => {
           const top3 = leaderboard.slice(0, 3);
-          const periodLabels: Record<string, string> = { day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois", all: "Tout le temps" };
-          const periodLabel = periodLabels[lbPeriod];
+          const monthNames = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+          const allMonths: { value: string; label: string }[] = [];
+          const start = new Date(2026, 3, 1);
+          const nowD = new Date();
+          const endM = new Date(nowD.getFullYear(), nowD.getMonth(), 1);
+          for (let cur = new Date(start); cur <= endM; cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1)) {
+            allMonths.push({ value: `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,"0")}`, label: `${monthNames[cur.getMonth()]} ${cur.getFullYear()}` });
+          }
+          allMonths.reverse();
+
+          const periodLabels: Record<string, string> = { day: "Aujourd'hui", week: "Cette semaine", all: "Tout le temps" };
+          const periodLabel = lbPeriod === "specificMonth"
+            ? (allMonths.find(m => m.value === lbMonth)?.label ?? lbMonth)
+            : (periodLabels[lbPeriod] ?? "Ce mois");
 
           return (
             <div>
               {/* Period filter */}
-              <div style={{ display: "flex", gap: "8px", marginBottom: "24px", background: "white", borderRadius: "12px", padding: "6px", border: "1px solid #E5E7EB" }}>
-                {(["day", "week", "month", "all"] as const).map(p => (
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px", background: "white", borderRadius: "12px", padding: "6px", border: "1px solid #E5E7EB" }}>
+                {(["day", "week", "all"] as const).map(p => (
                   <button key={p} onClick={() => setLbPeriod(p)} style={{
                     flex: 1, padding: "8px 4px", borderRadius: "8px", border: "none",
                     fontSize: "13px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
@@ -1596,6 +1613,26 @@ export default function AdminPage() {
                     {periodLabels[p]}
                   </button>
                 ))}
+              </div>
+
+              {/* Month selector */}
+              <div style={{ marginBottom: "24px", position: "relative" }}>
+                <select
+                  value={lbPeriod === "specificMonth" ? lbMonth : ""}
+                  onChange={e => { setLbMonth(e.target.value); setLbPeriod("specificMonth"); }}
+                  style={{
+                    width: "100%", padding: "10px 36px 10px 14px", borderRadius: "12px",
+                    border: lbPeriod === "specificMonth" ? "2px solid #2563EB" : "1px solid #E5E7EB",
+                    background: lbPeriod === "specificMonth" ? "#EFF6FF" : "white",
+                    fontSize: "14px", fontWeight: 600,
+                    color: lbPeriod === "specificMonth" ? "#2563EB" : "#6B7280",
+                    appearance: "none", cursor: "pointer", outline: "none",
+                  }}
+                >
+                  <option value="" disabled>Choisir un mois…</option>
+                  {allMonths.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+                <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", pointerEvents: "none", color: lbPeriod === "specificMonth" ? "#2563EB" : "#9CA3AF" }}>▾</span>
               </div>
 
               {lbLoading ? (
