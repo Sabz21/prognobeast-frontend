@@ -9,7 +9,7 @@ const plans = [
     price: "14,99",
     perMonth: "14,99",
     popular: false,
-    description: "Découvrez la méthode PrognoBeast sans engagement.",
+    description: "Découvrez la méthode PrognoBeast.",
     stripeLink: "https://buy.stripe.com/fZudR95Csgmaevl2yW9MY01",
   },
   {
