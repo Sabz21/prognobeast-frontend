@@ -47,7 +47,7 @@ const faq = [
   },
   {
     question: "Y a-t-il un renouvellement automatique ?",
-    answer: "Non. Aucun renouvellement automatique. Votre abonnement est à durée déterminée. À expiration, vous choisissez si vous souhaitez renouveler.",
+    answer: "Oui. Votre abonnement est à durée indéterminée. Si vous souhaitez l'annuler, veuillez contacter Prognobeast sur Telegram, Insta ou Tiktok afin de l'annuler.",
   },
   {
     question: "Puis-je changer de formule en cours d'abonnement ?",
