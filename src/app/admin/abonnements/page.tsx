@@ -87,6 +87,7 @@ export default function AbonnementsPage() {
   // Filter VIP
   const [filterPlan, setFilterPlan] = useState<"all" | VipPlan>("all");
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
+  const [search, setSearch] = useState("");
 
   // Load from localStorage
   useEffect(() => {
@@ -227,6 +228,11 @@ export default function AbonnementsPage() {
     if (filterPlan !== "all" && v.plan !== filterPlan) return false;
     if (filterActive === "active" && !v.active) return false;
     if (filterActive === "inactive" && v.active) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const match = [v.firstName, v.lastName, v.email, v.telegram].join(" ").toLowerCase();
+      if (!match.includes(q)) return false;
+    }
     return true;
   });
 
@@ -335,6 +341,13 @@ export default function AbonnementsPage() {
 
             {/* Filters + Add button */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                type="text"
+                placeholder="Rechercher nom, email, telegram..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ ...inputStyle, width: "260px", padding: "8px 12px" }}
+              />
               <select
                 value={filterPlan}
                 onChange={e => setFilterPlan(e.target.value as "all" | VipPlan)}
