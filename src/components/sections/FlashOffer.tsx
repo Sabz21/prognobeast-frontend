@@ -106,12 +106,12 @@ export default function FlashOffer() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '1.4rem', textDecoration: 'line-through' }}>29,99 €</div>
-            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>/ mois</div>
+            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>pour 2 mois</div>
           </div>
           <div style={{ fontSize: '2rem', color: '#C9A84C' }}>→</div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '3.5rem', fontWeight: 800, color: '#C9A84C', lineHeight: 1 }}>19,99 €</div>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginTop: '2px' }}>/ mois</div>
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginTop: '2px' }}>pour 2 mois</div>
           </div>
         </div>
 
