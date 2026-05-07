@@ -16,9 +16,9 @@ interface VipSubscriber {
   firstName: string;
   lastName: string;
   email: string;
+  telegram: string;
   plan: VipPlan;
   active: boolean;
-  renewing: boolean;
   startDate: string;
   notes: string;
 }
@@ -55,8 +55,8 @@ function saveStorage<T>(key: string, data: T[]) {
 // ── Empty forms ───────────────────────────────────────────────────────────────
 
 const emptyVip = (): Omit<VipSubscriber, "id"> => ({
-  firstName: "", lastName: "", email: "",
-  plan: "1 Mois", active: true, renewing: true,
+  firstName: "", lastName: "", email: "", telegram: "",
+  plan: "1 Mois", active: true,
   startDate: new Date().toISOString().slice(0, 10), notes: "",
 });
 
@@ -132,17 +132,12 @@ export default function AbonnementsPage() {
 
   function startEditVip(v: VipSubscriber) {
     setEditingVip(v.id);
-    setVipForm({ firstName: v.firstName, lastName: v.lastName, email: v.email, plan: v.plan, active: v.active, renewing: v.renewing, startDate: v.startDate, notes: v.notes });
+    setVipForm({ firstName: v.firstName, lastName: v.lastName, email: v.email, telegram: v.telegram, plan: v.plan, active: v.active, startDate: v.startDate, notes: v.notes });
     setShowVipForm(true);
   }
 
   function toggleVipActive(id: string) {
     const next = vips.map(v => v.id === id ? { ...v, active: !v.active } : v);
-    saveVips(next);
-  }
-
-  function toggleVipRenewing(id: string) {
-    const next = vips.map(v => v.id === id ? { ...v, renewing: !v.renewing } : v);
     saveVips(next);
   }
 
@@ -208,7 +203,6 @@ export default function AbonnementsPage() {
   });
 
   const activeCount = vips.filter(v => v.active).length;
-  const renewingCount = vips.filter(v => v.renewing && v.active).length;
 
   // ── Shared input style ─────────────────────────────────────────────────────
 
@@ -293,11 +287,10 @@ export default function AbonnementsPage() {
         {tab === "vip" && (
           <div>
             {/* Stats cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "20px" }}>
               {[
                 { label: "Total abonnés", value: vips.length, color: "#2563EB" },
                 { label: "Actifs", value: activeCount, color: "#16A34A" },
-                { label: "Se renouvellent", value: renewingCount, color: "#9333EA" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: "12px", padding: "16px 20px" }}>
                   <div style={{ fontSize: "28px", fontWeight: 800, color }}>{value}</div>
@@ -352,9 +345,13 @@ export default function AbonnementsPage() {
                     <label style={labelStyle}>Nom *</label>
                     <input style={inputStyle} placeholder="Dupont" value={vipForm.lastName} onChange={e => setVipForm(f => ({ ...f, lastName: e.target.value }))} />
                   </div>
-                  <div style={{ gridColumn: "span 2" }}>
+                  <div>
                     <label style={labelStyle}>Email *</label>
                     <input style={inputStyle} placeholder="jean@email.com" type="email" value={vipForm.email} onChange={e => setVipForm(f => ({ ...f, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nom Telegram</label>
+                    <input style={inputStyle} placeholder="@pseudo" value={vipForm.telegram} onChange={e => setVipForm(f => ({ ...f, telegram: e.target.value }))} />
                   </div>
                   <div>
                     <label style={labelStyle}>Abonnement</label>
@@ -370,10 +367,6 @@ export default function AbonnementsPage() {
                     <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px", fontWeight: 600, color: "#374151" }}>
                       <input type="checkbox" checked={vipForm.active} onChange={e => setVipForm(f => ({ ...f, active: e.target.checked }))} />
                       Abonnement actif
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px", fontWeight: 600, color: "#374151" }}>
-                      <input type="checkbox" checked={vipForm.renewing} onChange={e => setVipForm(f => ({ ...f, renewing: e.target.checked }))} />
-                      Se renouvelle le mois prochain
                     </label>
                   </div>
                   <div style={{ gridColumn: "span 2" }}>
@@ -403,7 +396,7 @@ export default function AbonnementsPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                      {["Nom", "Email", "Plan", "Début", "Actif", "Renouvellement", "Actions"].map(h => (
+                      {["Nom", "Email", "Telegram", "Plan", "Début", "Actif", "Actions"].map(h => (
                         <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</th>
                       ))}
                     </tr>
@@ -418,6 +411,7 @@ export default function AbonnementsPage() {
                             {v.notes && <div style={{ fontSize: "11px", color: "#9CA3AF", marginTop: "2px" }}>{v.notes}</div>}
                           </td>
                           <td style={{ padding: "12px 14px", fontSize: "13px", color: "#374151" }}>{v.email}</td>
+                          <td style={{ padding: "12px 14px", fontSize: "13px", color: "#374151" }}>{v.telegram || <span style={{ color: "#D1D5DB" }}>—</span>}</td>
                           <td style={{ padding: "12px 14px" }}>
                             <span style={{ background: pc.bg, color: pc.color, border: `1px solid ${pc.border}`, fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "999px" }}>
                               {v.plan}
@@ -427,11 +421,6 @@ export default function AbonnementsPage() {
                           <td style={{ padding: "12px 14px" }}>
                             <button onClick={() => toggleVipActive(v.id)} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "999px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, background: v.active ? "#D1FAE5" : "#FEE2E2", color: v.active ? "#065F46" : "#991B1B" }}>
                               {v.active ? <><Check size={11} /> Actif</> : <><X size={11} /> Inactif</>}
-                            </button>
-                          </td>
-                          <td style={{ padding: "12px 14px" }}>
-                            <button onClick={() => toggleVipRenewing(v.id)} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "999px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, background: v.renewing ? "#EDE9FE" : "#F3F4F6", color: v.renewing ? "#5B21B6" : "#6B7280" }}>
-                              {v.renewing ? "✓ Oui" : "✗ Non"}
                             </button>
                           </td>
                           <td style={{ padding: "12px 14px" }}>
