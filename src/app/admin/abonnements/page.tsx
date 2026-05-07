@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus, Trash2, Pencil, X, Check, ChevronLeft,
-  Crown, Zap, Users, Download,
+  Crown, Zap, Users, Download, Copy,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -123,6 +123,11 @@ export default function AbonnementsPage() {
     setEditingVip(null);
     setVipForm(emptyVip());
     setShowVipForm(false);
+  }
+
+  function handleDuplicateVip(v: VipSubscriber) {
+    const copy = { ...v, id: uid(), firstName: v.firstName + " (copie)" };
+    saveVips([...vips, copy]);
   }
 
   function handleDeleteVip(id: string) {
@@ -426,6 +431,7 @@ export default function AbonnementsPage() {
                           <td style={{ padding: "12px 14px" }}>
                             <div style={{ display: "flex", gap: "6px" }}>
                               <button onClick={() => startEditVip(v)} style={{ padding: "5px 8px", borderRadius: "7px", border: "1px solid #E5E7EB", background: "white", cursor: "pointer", color: "#374151" }}><Pencil size={13} /></button>
+                              <button onClick={() => handleDuplicateVip(v)} style={{ padding: "5px 8px", borderRadius: "7px", border: "1px solid #BFDBFE", background: "white", cursor: "pointer", color: "#2563EB" }}><Copy size={13} /></button>
                               <button onClick={() => handleDeleteVip(v.id)} style={{ padding: "5px 8px", borderRadius: "7px", border: "1px solid #FEE2E2", background: "white", cursor: "pointer", color: "#DC2626" }}><Trash2 size={13} /></button>
                             </div>
                           </td>
