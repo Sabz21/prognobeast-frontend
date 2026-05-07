@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Plus, Trash2, Pencil, X, Check, ChevronLeft,
-  Crown, Zap, Users, Download, Copy,
+  Crown, Zap, Users, Download, Upload, Copy,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -198,6 +198,29 @@ export default function AbonnementsPage() {
     URL.revokeObjectURL(url);
   }
 
+  function importData() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target?.result as string);
+          if (parsed.vips) { saveStorage(STORAGE_VIP, parsed.vips); setVips(parsed.vips); }
+          if (parsed.tips) { saveStorage(STORAGE_TIPS, parsed.tips); setTips(parsed.tips); }
+          alert(`Import réussi : ${parsed.vips?.length ?? 0} abonnés, ${parsed.tips?.length ?? 0} tips.`);
+        } catch {
+          alert("Fichier invalide.");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }
+
   // ── Filtered VIPs ──────────────────────────────────────────────────────────
 
   const filteredVips = vips.filter(v => {
@@ -256,6 +279,12 @@ export default function AbonnementsPage() {
           style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "white", cursor: "pointer", fontSize: "13px", color: "#374151", fontWeight: 600 }}
         >
           <Download size={14} /> Exporter JSON
+        </button>
+        <button
+          onClick={importData}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "8px", border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", fontSize: "13px", color: "#2563EB", fontWeight: 600 }}
+        >
+          <Upload size={14} /> Importer JSON
         </button>
       </div>
 
