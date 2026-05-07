@@ -5,9 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Users, TrendingUp, TrendingDown, Plus, CheckCircle2, XCircle,
   Clock, Trash2, LogOut, ShieldCheck, Trophy, Pencil, X,
-  Eye, ChevronLeft, ChevronRight, CalendarDays, Layers, BarChart2,
+  Eye, ChevronLeft, ChevronRight, CalendarDays, Layers, BarChart2, Crown,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -938,14 +939,24 @@ export default function AdminPage() {
                 <p style={{ fontSize: "13px", color: "#6B7280", marginTop: "1px" }}>{user.email}</p>
               </div>
             </div>
-            <button onClick={() => { logout(); router.push("/"); }} style={{
-              display: "flex", alignItems: "center", gap: "6px",
-              fontSize: "13px", fontWeight: 500, color: "#6B7280",
-              background: "none", border: "1px solid #E5E7EB", borderRadius: "10px",
-              padding: "8px 14px", cursor: "pointer",
-            }}>
-              <LogOut size={14} />
-            </button>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <Link href="/admin/abonnements" style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                fontSize: "13px", fontWeight: 600, color: "#2563EB",
+                background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: "10px",
+                padding: "8px 14px", textDecoration: "none",
+              }}>
+                <Crown size={14} /> Abonnements
+              </Link>
+              <button onClick={() => { logout(); router.push("/"); }} style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                fontSize: "13px", fontWeight: 500, color: "#6B7280",
+                background: "none", border: "1px solid #E5E7EB", borderRadius: "10px",
+                padding: "8px 14px", cursor: "pointer",
+              }}>
+                <LogOut size={14} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
