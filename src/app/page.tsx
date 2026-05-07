@@ -1,5 +1,6 @@
 // app/page.tsx — Home
 import Hero from "@/components/sections/Hero";
+import FlashOffer from "@/components/sections/FlashOffer";
 import Link from "next/link";
 
 const plans = [
@@ -54,6 +55,7 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      <FlashOffer />
 
       {/* ── Section Plans ─────────────────────────── */}
       <section style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB", padding: "5rem 0" }}>
