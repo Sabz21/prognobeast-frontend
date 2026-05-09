@@ -93,6 +93,8 @@ export default function AbonnementsPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState<Date | null>(null);
+  const [dateTo, setDateTo] = useState<Date | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -239,6 +241,8 @@ export default function AbonnementsPage() {
         const match = [v.firstName, v.lastName, v.email, v.telegram].join(" ").toLowerCase();
         if (!match.includes(q)) return false;
       }
+      if (dateFrom && new Date(v.startDate) < dateFrom) return false;
+      if (dateTo && new Date(v.startDate) > dateTo) return false;
       return true;
     })
     .sort((a, b) => {
@@ -381,6 +385,31 @@ export default function AbonnementsPage() {
               >
                 Date {sortOrder === "asc" ? "↑ Ancien → Récent" : "↓ Récent → Ancien"}
               </button>
+              <DatePicker
+                locale="fr"
+                dateFormat="dd/MM/yyyy"
+                selected={dateFrom}
+                onChange={(d: Date | null) => setDateFrom(d)}
+                placeholderText="Du..."
+                isClearable
+                customInput={<input style={{ ...inputStyle, width: "110px", padding: "8px 12px", cursor: "pointer" }} />}
+                popperPlacement="bottom-start"
+              />
+              <DatePicker
+                locale="fr"
+                dateFormat="dd/MM/yyyy"
+                selected={dateTo}
+                onChange={(d: Date | null) => setDateTo(d)}
+                placeholderText="Au..."
+                isClearable
+                customInput={<input style={{ ...inputStyle, width: "110px", padding: "8px 12px", cursor: "pointer" }} />}
+                popperPlacement="bottom-start"
+              />
+              {(dateFrom || dateTo) && (
+                <button onClick={() => { setDateFrom(null); setDateTo(null); }} style={{ fontSize: "12px", color: "#DC2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                  Effacer dates
+                </button>
+              )}
               <div style={{ flex: 1 }} />
               <button
                 onClick={() => { setEditingVip(null); setVipForm(emptyVip()); setShowVipForm(true); }}
