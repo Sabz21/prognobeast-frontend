@@ -86,6 +86,7 @@ export default function AbonnementsPage() {
 
   // Filter VIP
   const [filterPlan, setFilterPlan] = useState<"all" | VipPlan>("all");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
   const [search, setSearch] = useState("");
 
@@ -224,17 +225,22 @@ export default function AbonnementsPage() {
 
   // ── Filtered VIPs ──────────────────────────────────────────────────────────
 
-  const filteredVips = vips.filter(v => {
-    if (filterPlan !== "all" && v.plan !== filterPlan) return false;
-    if (filterActive === "active" && !v.active) return false;
-    if (filterActive === "inactive" && v.active) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const match = [v.firstName, v.lastName, v.email, v.telegram].join(" ").toLowerCase();
-      if (!match.includes(q)) return false;
-    }
-    return true;
-  });
+  const filteredVips = vips
+    .filter(v => {
+      if (filterPlan !== "all" && v.plan !== filterPlan) return false;
+      if (filterActive === "active" && !v.active) return false;
+      if (filterActive === "inactive" && v.active) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const match = [v.firstName, v.lastName, v.email, v.telegram].join(" ").toLowerCase();
+        if (!match.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const diff = a.startDate.localeCompare(b.startDate);
+      return sortOrder === "asc" ? diff : -diff;
+    });
 
   const activeCount = vips.filter(v => v.active).length;
 
@@ -365,6 +371,12 @@ export default function AbonnementsPage() {
                 <option value="active">Actifs uniquement</option>
                 <option value="inactive">Inactifs uniquement</option>
               </select>
+              <button
+                onClick={() => setSortOrder(o => o === "asc" ? "desc" : "asc")}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 12px", borderRadius: "8px", border: "1px solid #E5E7EB", background: "white", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "#374151" }}
+              >
+                Date {sortOrder === "asc" ? "↑ Ancien → Récent" : "↓ Récent → Ancien"}
+              </button>
               <div style={{ flex: 1 }} />
               <button
                 onClick={() => { setEditingVip(null); setVipForm(emptyVip()); setShowVipForm(true); }}
