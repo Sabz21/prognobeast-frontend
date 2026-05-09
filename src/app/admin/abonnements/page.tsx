@@ -1,5 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
+import DatePicker, { registerLocale } from "react-datepicker";
+import { fr } from "date-fns/locale/fr";
+import "react-datepicker/dist/react-datepicker.css";
+registerLocale("fr", fr);
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -420,7 +424,14 @@ export default function AbonnementsPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Date de début</label>
-                    <input style={inputStyle} type="date" value={vipForm.startDate} onChange={e => setVipForm(f => ({ ...f, startDate: e.target.value }))} />
+                    <DatePicker
+                      locale="fr"
+                      dateFormat="dd/MM/yyyy"
+                      selected={vipForm.startDate ? new Date(vipForm.startDate) : null}
+                      onChange={(date: Date | null) => setVipForm(f => ({ ...f, startDate: date ? date.toISOString().slice(0, 10) : "" }))}
+                      customInput={<input style={inputStyle} />}
+                      popperPlacement="bottom-start"
+                    />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "24px", gridColumn: "span 2" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px", fontWeight: 600, color: "#374151" }}>
