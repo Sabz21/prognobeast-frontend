@@ -13,7 +13,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type VipPlan = "1 Mois" | "3 Mois" | "6 Mois" | "12 Mois" | "2 Mois Flash";
+type VipPlan = "1 Mois" | "1 Mois - Afrique" | "3 Mois" | "6 Mois" | "12 Mois" | "2 Mois Flash";
 
 interface VipSubscriber {
   id: string;
@@ -35,7 +35,26 @@ interface TipFollower {
   notes: string;
 }
 
-const PLANS: VipPlan[] = ["1 Mois", "3 Mois", "6 Mois", "12 Mois", "2 Mois Flash"];
+const PLANS: VipPlan[] = ["1 Mois", "1 Mois - Afrique", "3 Mois", "6 Mois", "12 Mois", "2 Mois Flash"];
+
+const PLAN_MONTHS: Record<VipPlan, number> = {
+  "1 Mois": 1,
+  "1 Mois - Afrique": 1,
+  "3 Mois": 3,
+  "6 Mois": 6,
+  "12 Mois": 12,
+  "2 Mois Flash": 2,
+};
+
+function getExpiryDate(startDate: string, plan: VipPlan): Date {
+  const d = new Date(startDate);
+  d.setMonth(d.getMonth() + PLAN_MONTHS[plan]);
+  return d;
+}
+
+function toDateStr(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
 
 const STORAGE_VIP = "pb_vip_subscribers";
 const STORAGE_TIPS = "pb_tip_followers";
@@ -251,6 +270,8 @@ export default function AbonnementsPage() {
     });
 
   const activeCount = vips.filter(v => v.active).length;
+  const today = toDateStr(new Date());
+  const toCheckToday = vips.filter(v => v.active && toDateStr(getExpiryDate(v.startDate, v.plan)) === today);
 
   // ── Shared input style ─────────────────────────────────────────────────────
 
@@ -274,6 +295,7 @@ export default function AbonnementsPage() {
     if (plan === "12 Mois") return { bg: "#EDE9FE", color: "#5B21B6", border: "#C4B5FD" };
     if (plan === "6 Mois") return { bg: "#DBEAFE", color: "#1D4ED8", border: "#BFDBFE" };
     if (plan === "3 Mois") return { bg: "#D1FAE5", color: "#065F46", border: "#A7F3D0" };
+    if (plan === "1 Mois - Afrique") return { bg: "#FEF9C3", color: "#854D0E", border: "#FDE047" };
     return { bg: "#F3F4F6", color: "#374151", border: "#E5E7EB" };
   }
 
@@ -340,6 +362,35 @@ export default function AbonnementsPage() {
         {/* ══ VIP TAB ══════════════════════════════════════════════════════════ */}
         {tab === "vip" && (
           <div>
+            {/* ── Alerte du jour ── */}
+            {toCheckToday.length > 0 && (
+              <div style={{ background: "#FFF7ED", border: "1.5px solid #FED7AA", borderRadius: "14px", padding: "16px 20px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <span style={{ fontSize: "18px" }}>⚠️</span>
+                  <span style={{ fontWeight: 700, fontSize: "15px", color: "#92400E" }}>
+                    {toCheckToday.length} abonnement{toCheckToday.length > 1 ? "s" : ""} à vérifier aujourd&apos;hui
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {toCheckToday.map(v => (
+                    <div key={v.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "white", border: "1px solid #FED7AA", borderRadius: "10px", padding: "10px 14px" }}>
+                      <div>
+                        <span style={{ fontWeight: 700, fontSize: "14px", color: "#111827" }}>{v.firstName} {v.lastName}</span>
+                        {v.telegram && <span style={{ fontSize: "12px", color: "#9CA3AF", marginLeft: "8px" }}>@{v.telegram}</span>}
+                        <span style={{ fontSize: "12px", color: "#6B7280", marginLeft: "8px" }}>· {v.plan} · depuis le {v.startDate}</span>
+                      </div>
+                      <button
+                        onClick={() => toggleVipActive(v.id)}
+                        style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", borderRadius: "999px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 700, background: "#D1FAE5", color: "#065F46" }}
+                      >
+                        <Check size={12} /> Toujours actif
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Stats cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "20px" }}>
               {[
