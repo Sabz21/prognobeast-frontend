@@ -65,6 +65,80 @@ interface LeaderboardEntry {
   totalUnits: number;
 }
 
+interface CdmPariSimple {
+  id: string;
+  team1: string;
+  team2: string;
+  pari: string;
+  cote: number;
+  units: number;
+  status: "PENDING" | "WON" | "LOST";
+  createdAt: string;
+}
+
+interface CdmPariButeur {
+  id: string;
+  team1: string;
+  team2: string;
+  joueur: string;
+  pari: string;
+  cote: number;
+  units: number;
+  status: "PENDING" | "WON" | "LOST";
+  createdAt: string;
+}
+
+const CDM_PAYS = [
+  { code: "US", nom: "États-Unis", flag: "🇺🇸" },
+  { code: "CA", nom: "Canada", flag: "🇨🇦" },
+  { code: "MX", nom: "Mexique", flag: "🇲🇽" },
+  { code: "AR", nom: "Argentine", flag: "🇦🇷" },
+  { code: "BR", nom: "Brésil", flag: "🇧🇷" },
+  { code: "CO", nom: "Colombie", flag: "🇨🇴" },
+  { code: "EC", nom: "Équateur", flag: "🇪🇨" },
+  { code: "UY", nom: "Uruguay", flag: "🇺🇾" },
+  { code: "VE", nom: "Venezuela", flag: "🇻🇪" },
+  { code: "DE", nom: "Allemagne", flag: "🇩🇪" },
+  { code: "ES", nom: "Espagne", flag: "🇪🇸" },
+  { code: "PT", nom: "Portugal", flag: "🇵🇹" },
+  { code: "FR", nom: "France", flag: "🇫🇷" },
+  { code: "EN", nom: "Angleterre", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  { code: "NL", nom: "Pays-Bas", flag: "🇳🇱" },
+  { code: "CH", nom: "Suisse", flag: "🇨🇭" },
+  { code: "AT", nom: "Autriche", flag: "🇦🇹" },
+  { code: "DK", nom: "Danemark", flag: "🇩🇰" },
+  { code: "TR", nom: "Turquie", flag: "🇹🇷" },
+  { code: "BE", nom: "Belgique", flag: "🇧🇪" },
+  { code: "HR", nom: "Croatie", flag: "🇭🇷" },
+  { code: "RS", nom: "Serbie", flag: "🇷🇸" },
+  { code: "SI", nom: "Slovénie", flag: "🇸🇮" },
+  { code: "SC", nom: "Écosse", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
+  { code: "GR", nom: "Grèce", flag: "🇬🇷" },
+  { code: "MA", nom: "Maroc", flag: "🇲🇦" },
+  { code: "NG", nom: "Nigeria", flag: "🇳🇬" },
+  { code: "SN", nom: "Sénégal", flag: "🇸🇳" },
+  { code: "EG", nom: "Égypte", flag: "🇪🇬" },
+  { code: "ZA", nom: "Afrique du Sud", flag: "🇿🇦" },
+  { code: "CM", nom: "Cameroun", flag: "🇨🇲" },
+  { code: "CD", nom: "RD Congo", flag: "🇨🇩" },
+  { code: "GH", nom: "Ghana", flag: "🇬🇭" },
+  { code: "DZ", nom: "Algérie", flag: "🇩🇿" },
+  { code: "CI", nom: "Côte d'Ivoire", flag: "🇨🇮" },
+  { code: "JP", nom: "Japon", flag: "🇯🇵" },
+  { code: "KR", nom: "Corée du Sud", flag: "🇰🇷" },
+  { code: "IR", nom: "Iran", flag: "🇮🇷" },
+  { code: "JO", nom: "Jordanie", flag: "🇯🇴" },
+  { code: "IQ", nom: "Irak", flag: "🇮🇶" },
+  { code: "QA", nom: "Qatar", flag: "🇶🇦" },
+  { code: "UZ", nom: "Ouzbékistan", flag: "🇺🇿" },
+  { code: "AU", nom: "Australie", flag: "🇦🇺" },
+  { code: "PA", nom: "Panama", flag: "🇵🇦" },
+  { code: "HN", nom: "Honduras", flag: "🇭🇳" },
+  { code: "CR", nom: "Costa Rica", flag: "🇨🇷" },
+  { code: "NZ", nom: "Nouvelle-Zélande", flag: "🇳🇿" },
+  { code: "CL", nom: "Chili", flag: "🇨🇱" },
+];
+
 // ── helpers partagés ─────────────────────────────────────────────────────────
 function toDateKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -389,7 +463,7 @@ const inp: React.CSSProperties = {
 export default function AdminPage() {
   const { user, token, logout, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<"users" | "bets" | "preview" | "montantes" | "classement">("users");
+  const [tab, setTab] = useState<"users" | "bets" | "preview" | "montantes" | "classement" | "cdm">("users");
   const [previewSelectedDay, setPreviewSelectedDay] = useState<string | null>(null);
   const [previewSelectedPeriod, setPreviewSelectedPeriod] = useState<AdminPeriodKey | null>(null);
   const [montantes, setMontantes] = useState<AdminMontante[]>([]);
@@ -424,6 +498,18 @@ export default function AdminPage() {
     const n = new Date();
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
   });
+
+  // ── CDM 2026 state ───────────────────────────────────────────────────────────
+  const [cdmSubTab, setCdmSubTab] = useState<"simples" | "buteurs">("simples");
+  const [cdmSimples, setCdmSimples] = useState<CdmPariSimple[]>([]);
+  const [cdmButeurs, setCdmButeurs] = useState<CdmPariButeur[]>([]);
+  const [cdmLoading, setCdmLoading] = useState(false);
+  const [cdmSimpleForm, setCdmSimpleForm] = useState({ team1: "", team2: "", pari: "", cote: "", units: "1" });
+  const [cdmButeurForm, setCdmButeurForm] = useState({ team1: "", team2: "", joueur: "", pari: "", cote: "", units: "1" });
+  const [cdmSimpleError, setCdmSimpleError] = useState("");
+  const [cdmButeurError, setCdmButeurError] = useState("");
+  const [cdmSimpleCreating, setCdmSimpleCreating] = useState(false);
+  const [cdmButeurCreating, setCdmButeurCreating] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -471,7 +557,21 @@ export default function AdminPage() {
     } catch { /* silent */ } finally { setLbLoading(false); }
   }, [token]);
 
-  useEffect(() => { if (token) { fetchUsers(); fetchBets(); fetchMontantes(); } }, [token, fetchUsers, fetchBets, fetchMontantes]);
+  const fetchCdm = useCallback(async () => {
+    if (!token) return;
+    setCdmLoading(true);
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`${API_URL}/api/admin/cdm/simples`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/admin/cdm/buteurs`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      if (d1.success) setCdmSimples(d1.data);
+      if (d2.success) setCdmButeurs(d2.data);
+    } catch { /* silent */ } finally { setCdmLoading(false); }
+  }, [token]);
+
+  useEffect(() => { if (token) { fetchUsers(); fetchBets(); fetchMontantes(); fetchCdm(); } }, [token, fetchUsers, fetchBets, fetchMontantes, fetchCdm]);
   useEffect(() => { if (token) fetchLeaderboard(lbPeriod, lbMonth); }, [token, lbPeriod, lbMonth, fetchLeaderboard]);
 
   async function handleApprove(id: string) {
@@ -975,8 +1075,9 @@ export default function AdminPage() {
             { key: "montantes", label: "Montantes", Icon: Layers, badge: montantes.filter(m => m.status === "ACTIVE").length },
             { key: "preview", label: "Aperçu VIP", Icon: Eye, badge: 0 },
             { key: "classement", label: "Classement", Icon: BarChart2, badge: 0 },
+            { key: "cdm", label: "CDM 2026", Icon: Trophy, badge: 0 },
           ].map(({ key, label, Icon, badge }) => (
-            <button key={key} onClick={() => setTab(key as "users" | "bets" | "montantes" | "preview" | "classement")} style={{
+            <button key={key} onClick={() => setTab(key as "users" | "bets" | "montantes" | "preview" | "classement" | "cdm")} style={{
               flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               padding: "10px 8px", borderRadius: "10px", border: "none", cursor: "pointer",
               fontSize: "13px", fontWeight: 700, transition: "all 0.15s",
@@ -1994,6 +2095,281 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ══ CDM 2026 ══ */}
+        {tab === "cdm" && (() => {
+          const flagOf = (code: string) => CDM_PAYS.find(p => p.code === code)?.flag ?? "🏳";
+          const nomOf = (code: string) => CDM_PAYS.find(p => p.code === code)?.nom ?? code;
+
+          const statsSimples = (() => {
+            const done = cdmSimples.filter(b => b.status !== "PENDING");
+            const won = done.filter(b => b.status === "WON").length;
+            const pct = done.length > 0 ? Math.round((won / done.length) * 100) : 0;
+            return { won, total: done.length, pct };
+          })();
+
+          const statsButeurs = (() => {
+            const done = cdmButeurs.filter(b => b.status !== "PENDING");
+            const won = done.filter(b => b.status === "WON").length;
+            const pct = done.length > 0 ? Math.round((won / done.length) * 100) : 0;
+            return { won, total: done.length, pct };
+          })();
+
+          async function handleAddSimple(e: FormEvent) {
+            e.preventDefault();
+            setCdmSimpleError(""); setCdmSimpleCreating(true);
+            try {
+              const res = await fetch(`${API_URL}/api/admin/cdm/simples`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ ...cdmSimpleForm, cote: parseFloat(cdmSimpleForm.cote), units: parseFloat(cdmSimpleForm.units) }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.message);
+              setCdmSimpleForm({ team1: "", team2: "", pari: "", cote: "", units: "1" });
+              await fetchCdm();
+            } catch (err: unknown) {
+              setCdmSimpleError(err instanceof Error ? err.message : "Erreur.");
+            } finally { setCdmSimpleCreating(false); }
+          }
+
+          async function handleAddButeur(e: FormEvent) {
+            e.preventDefault();
+            setCdmButeurError(""); setCdmButeurCreating(true);
+            try {
+              const res = await fetch(`${API_URL}/api/admin/cdm/buteurs`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ ...cdmButeurForm, cote: parseFloat(cdmButeurForm.cote), units: parseFloat(cdmButeurForm.units) }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.message);
+              setCdmButeurForm({ team1: "", team2: "", joueur: "", pari: "", cote: "", units: "1" });
+              await fetchCdm();
+            } catch (err: unknown) {
+              setCdmButeurError(err instanceof Error ? err.message : "Erreur.");
+            } finally { setCdmButeurCreating(false); }
+          }
+
+          async function setSimpleResult(id: string, status: "PENDING" | "WON" | "LOST") {
+            await fetch(`${API_URL}/api/admin/cdm/simples/${id}/result`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ status }),
+            });
+            await fetchCdm();
+          }
+
+          async function setButeurResult(id: string, status: "PENDING" | "WON" | "LOST") {
+            await fetch(`${API_URL}/api/admin/cdm/buteurs/${id}/result`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ status }),
+            });
+            await fetchCdm();
+          }
+
+          async function deleteSimple(id: string) {
+            await fetch(`${API_URL}/api/admin/cdm/simples/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+            await fetchCdm();
+          }
+
+          async function deleteButeur(id: string) {
+            await fetch(`${API_URL}/api/admin/cdm/buteurs/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+            await fetchCdm();
+          }
+
+          const selectStyle: React.CSSProperties = { ...inp, appearance: "none" as const };
+          const stats = cdmSubTab === "simples" ? statsSimples : statsButeurs;
+
+          return (
+            <div>
+              {/* Sub-tabs */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+                {(["simples", "buteurs"] as const).map(k => (
+                  <button key={k} onClick={() => setCdmSubTab(k)} style={{
+                    padding: "8px 20px", borderRadius: "10px", border: "none", cursor: "pointer",
+                    fontSize: "13px", fontWeight: 700,
+                    background: cdmSubTab === k ? "#2563EB" : "#F3F4F6",
+                    color: cdmSubTab === k ? "white" : "#6B7280",
+                  }}>
+                    {k === "simples" ? "Paris Simples" : "Paris Buteurs"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Stats */}
+              <div style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "20px", marginBottom: "20px", display: "flex", gap: "24px", alignItems: "center" }}>
+                <div>
+                  <p style={{ fontSize: "12px", color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Paris réussis</p>
+                  <p style={{ fontSize: "24px", fontWeight: 800, color: "#111827" }}>{stats.won}/{stats.total}</p>
+                </div>
+                <div style={{ width: "1px", height: "40px", background: "#E5E7EB" }} />
+                <div>
+                  <p style={{ fontSize: "12px", color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Taux de réussite</p>
+                  <p style={{ fontSize: "24px", fontWeight: 800, color: stats.pct >= 60 ? "#16A34A" : stats.pct >= 40 ? "#D97706" : "#DC2626" }}>
+                    {stats.pct}%
+                  </p>
+                </div>
+                <div style={{ flex: 1, background: "#F3F4F6", borderRadius: "999px", height: "10px", overflow: "hidden" }}>
+                  <div style={{ width: `${stats.pct}%`, height: "100%", borderRadius: "999px", background: stats.pct >= 60 ? "#16A34A" : stats.pct >= 40 ? "#D97706" : "#DC2626", transition: "width 0.4s" }} />
+                </div>
+              </div>
+
+              {/* Form */}
+              {cdmSubTab === "simples" ? (
+                <form onSubmit={handleAddSimple} style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
+                  <p style={{ fontWeight: 700, fontSize: "14px", color: "#111827", marginBottom: "14px" }}>Ajouter un pari simple</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Équipe 1</label>
+                      <select value={cdmSimpleForm.team1} onChange={e => setCdmSimpleForm(f => ({ ...f, team1: e.target.value }))} style={selectStyle} required>
+                        <option value="">Choisir un pays...</option>
+                        {CDM_PAYS.map(p => <option key={p.code} value={p.code}>{p.flag} {p.nom}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Équipe 2</label>
+                      <select value={cdmSimpleForm.team2} onChange={e => setCdmSimpleForm(f => ({ ...f, team2: e.target.value }))} style={selectStyle} required>
+                        <option value="">Choisir un pays...</option>
+                        {CDM_PAYS.map(p => <option key={p.code} value={p.code}>{p.flag} {p.nom}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: "10px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Pari</label>
+                    <input value={cdmSimpleForm.pari} onChange={e => setCdmSimpleForm(f => ({ ...f, pari: e.target.value }))} placeholder="ex: Victoire France" style={inp} required />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Cote</label>
+                      <input type="number" step="0.01" min="1.01" value={cdmSimpleForm.cote} onChange={e => setCdmSimpleForm(f => ({ ...f, cote: e.target.value }))} placeholder="ex: 2.10" style={inp} required />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Unités</label>
+                      <input type="number" step="0.5" min="0.5" value={cdmSimpleForm.units} onChange={e => setCdmSimpleForm(f => ({ ...f, units: e.target.value }))} style={inp} required />
+                    </div>
+                  </div>
+                  {cdmSimpleError && <p style={{ color: "#DC2626", fontSize: "12px", marginBottom: "10px" }}>{cdmSimpleError}</p>}
+                  <button type="submit" disabled={cdmSimpleCreating} style={{ background: "#2563EB", color: "white", border: "none", borderRadius: "10px", padding: "10px 20px", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+                    {cdmSimpleCreating ? "Ajout..." : "Ajouter"}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleAddButeur} style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
+                  <p style={{ fontWeight: 700, fontSize: "14px", color: "#111827", marginBottom: "14px" }}>Ajouter un pari buteur</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Équipe 1</label>
+                      <select value={cdmButeurForm.team1} onChange={e => setCdmButeurForm(f => ({ ...f, team1: e.target.value }))} style={selectStyle} required>
+                        <option value="">Choisir un pays...</option>
+                        {CDM_PAYS.map(p => <option key={p.code} value={p.code}>{p.flag} {p.nom}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Équipe 2</label>
+                      <select value={cdmButeurForm.team2} onChange={e => setCdmButeurForm(f => ({ ...f, team2: e.target.value }))} style={selectStyle} required>
+                        <option value="">Choisir un pays...</option>
+                        {CDM_PAYS.map(p => <option key={p.code} value={p.code}>{p.flag} {p.nom}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: "10px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Joueur (buteur)</label>
+                    <input value={cdmButeurForm.joueur} onChange={e => setCdmButeurForm(f => ({ ...f, joueur: e.target.value }))} placeholder="ex: Mbappé" style={inp} required />
+                  </div>
+                  <div style={{ marginBottom: "10px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Pari</label>
+                    <input value={cdmButeurForm.pari} onChange={e => setCdmButeurForm(f => ({ ...f, pari: e.target.value }))} placeholder="ex: Buteur dans le match" style={inp} required />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Cote</label>
+                      <input type="number" step="0.01" min="1.01" value={cdmButeurForm.cote} onChange={e => setCdmButeurForm(f => ({ ...f, cote: e.target.value }))} placeholder="ex: 3.50" style={inp} required />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#6B7280", display: "block", marginBottom: "4px" }}>Unités</label>
+                      <input type="number" step="0.5" min="0.5" value={cdmButeurForm.units} onChange={e => setCdmButeurForm(f => ({ ...f, units: e.target.value }))} style={inp} required />
+                    </div>
+                  </div>
+                  {cdmButeurError && <p style={{ color: "#DC2626", fontSize: "12px", marginBottom: "10px" }}>{cdmButeurError}</p>}
+                  <button type="submit" disabled={cdmButeurCreating} style={{ background: "#2563EB", color: "white", border: "none", borderRadius: "10px", padding: "10px 20px", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+                    {cdmButeurCreating ? "Ajout..." : "Ajouter"}
+                  </button>
+                </form>
+              )}
+
+              {/* Liste des paris */}
+              {cdmLoading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid #2563EB", borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+                </div>
+              ) : cdmSubTab === "simples" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {cdmSimples.length === 0 && <p style={{ textAlign: "center", color: "#9CA3AF", padding: "40px" }}>Aucun pari simple pour le moment.</p>}
+                  {cdmSimples.map(b => (
+                    <div key={b.id} style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "16px" }}>
+                      <div style={{ fontSize: "24px", display: "flex", gap: "4px", alignItems: "center" }}>
+                        <span>{flagOf(b.team1)}</span>
+                        <span style={{ fontSize: "13px", color: "#9CA3AF", margin: "0 2px" }}>vs</span>
+                        <span>{flagOf(b.team2)}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: "13px", fontWeight: 700, color: "#111827", marginBottom: "2px" }}>{b.pari}</p>
+                        <p style={{ fontSize: "11px", color: "#9CA3AF" }}>{nomOf(b.team1)} vs {nomOf(b.team2)} · {b.units}u · @{b.cote}</p>
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        {(["WON", "PENDING", "LOST"] as const).map(s => (
+                          <button key={s} onClick={() => setSimpleResult(b.id, s)} style={{
+                            padding: "5px 10px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700,
+                            background: b.status === s ? (s === "WON" ? "#16A34A" : s === "LOST" ? "#DC2626" : "#F59E0B") : "#F3F4F6",
+                            color: b.status === s ? "white" : "#9CA3AF",
+                          }}>
+                            {s === "WON" ? "✓ Gagné" : s === "LOST" ? "✗ Perdu" : "En cours"}
+                          </button>
+                        ))}
+                        <button onClick={() => deleteSimple(b.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", padding: "4px" }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {cdmButeurs.length === 0 && <p style={{ textAlign: "center", color: "#9CA3AF", padding: "40px" }}>Aucun pari buteur pour le moment.</p>}
+                  {cdmButeurs.map(b => (
+                    <div key={b.id} style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "16px" }}>
+                      <div style={{ fontSize: "24px", display: "flex", gap: "4px", alignItems: "center" }}>
+                        <span>{flagOf(b.team1)}</span>
+                        <span style={{ fontSize: "13px", color: "#9CA3AF", margin: "0 2px" }}>vs</span>
+                        <span>{flagOf(b.team2)}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: "13px", fontWeight: 700, color: "#111827", marginBottom: "2px" }}>{b.joueur} — {b.pari}</p>
+                        <p style={{ fontSize: "11px", color: "#9CA3AF" }}>{nomOf(b.team1)} vs {nomOf(b.team2)} · {b.units}u · @{b.cote}</p>
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        {(["WON", "PENDING", "LOST"] as const).map(s => (
+                          <button key={s} onClick={() => setButeurResult(b.id, s)} style={{
+                            padding: "5px 10px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700,
+                            background: b.status === s ? (s === "WON" ? "#16A34A" : s === "LOST" ? "#DC2626" : "#F59E0B") : "#F3F4F6",
+                            color: b.status === s ? "white" : "#9CA3AF",
+                          }}>
+                            {s === "WON" ? "✓ Gagné" : s === "LOST" ? "✗ Perdu" : "En cours"}
+                          </button>
+                        ))}
+                        <button onClick={() => deleteButeur(b.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", padding: "4px" }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           );
