@@ -89,54 +89,60 @@ interface CdmPariButeur {
 }
 
 const CDM_PAYS = [
+  // CONCACAF
   { code: "US", nom: "États-Unis", flag: "🇺🇸" },
   { code: "CA", nom: "Canada", flag: "🇨🇦" },
   { code: "MX", nom: "Mexique", flag: "🇲🇽" },
+  { code: "PA", nom: "Panama", flag: "🇵🇦" },
+  { code: "HT", nom: "Haïti", flag: "🇭🇹" },
+  { code: "CW", nom: "Curaçao", flag: "🇨🇼" },
+  // CONMEBOL
   { code: "AR", nom: "Argentine", flag: "🇦🇷" },
   { code: "BR", nom: "Brésil", flag: "🇧🇷" },
   { code: "CO", nom: "Colombie", flag: "🇨🇴" },
   { code: "EC", nom: "Équateur", flag: "🇪🇨" },
   { code: "UY", nom: "Uruguay", flag: "🇺🇾" },
-  { code: "VE", nom: "Venezuela", flag: "🇻🇪" },
-  { code: "DE", nom: "Allemagne", flag: "🇩🇪" },
-  { code: "ES", nom: "Espagne", flag: "🇪🇸" },
-  { code: "PT", nom: "Portugal", flag: "🇵🇹" },
+  { code: "PY", nom: "Paraguay", flag: "🇵🇾" },
+  // UEFA
   { code: "FR", nom: "France", flag: "🇫🇷" },
+  { code: "ES", nom: "Espagne", flag: "🇪🇸" },
   { code: "EN", nom: "Angleterre", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  { code: "PT", nom: "Portugal", flag: "🇵🇹" },
+  { code: "DE", nom: "Allemagne", flag: "🇩🇪" },
   { code: "NL", nom: "Pays-Bas", flag: "🇳🇱" },
-  { code: "CH", nom: "Suisse", flag: "🇨🇭" },
-  { code: "AT", nom: "Autriche", flag: "🇦🇹" },
-  { code: "DK", nom: "Danemark", flag: "🇩🇰" },
-  { code: "TR", nom: "Turquie", flag: "🇹🇷" },
   { code: "BE", nom: "Belgique", flag: "🇧🇪" },
   { code: "HR", nom: "Croatie", flag: "🇭🇷" },
-  { code: "RS", nom: "Serbie", flag: "🇷🇸" },
-  { code: "SI", nom: "Slovénie", flag: "🇸🇮" },
+  { code: "CH", nom: "Suisse", flag: "🇨🇭" },
+  { code: "AT", nom: "Autriche", flag: "🇦🇹" },
   { code: "SC", nom: "Écosse", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
-  { code: "GR", nom: "Grèce", flag: "🇬🇷" },
+  { code: "NO", nom: "Norvège", flag: "🇳🇴" },
+  { code: "SE", nom: "Suède", flag: "🇸🇪" },
+  { code: "TR", nom: "Turquie", flag: "🇹🇷" },
+  { code: "CZ", nom: "Tchéquie", flag: "🇨🇿" },
+  { code: "BA", nom: "Bosnie-Herzégovine", flag: "🇧🇦" },
+  // CAF
   { code: "MA", nom: "Maroc", flag: "🇲🇦" },
-  { code: "NG", nom: "Nigeria", flag: "🇳🇬" },
   { code: "SN", nom: "Sénégal", flag: "🇸🇳" },
   { code: "EG", nom: "Égypte", flag: "🇪🇬" },
-  { code: "ZA", nom: "Afrique du Sud", flag: "🇿🇦" },
-  { code: "CM", nom: "Cameroun", flag: "🇨🇲" },
-  { code: "CD", nom: "RD Congo", flag: "🇨🇩" },
-  { code: "GH", nom: "Ghana", flag: "🇬🇭" },
+  { code: "TN", nom: "Tunisie", flag: "🇹🇳" },
   { code: "DZ", nom: "Algérie", flag: "🇩🇿" },
+  { code: "ZA", nom: "Afrique du Sud", flag: "🇿🇦" },
   { code: "CI", nom: "Côte d'Ivoire", flag: "🇨🇮" },
+  { code: "GH", nom: "Ghana", flag: "🇬🇭" },
+  { code: "CV", nom: "Cap-Vert", flag: "🇨🇻" },
+  { code: "CD", nom: "RD Congo", flag: "🇨🇩" },
+  // AFC
   { code: "JP", nom: "Japon", flag: "🇯🇵" },
   { code: "KR", nom: "Corée du Sud", flag: "🇰🇷" },
   { code: "IR", nom: "Iran", flag: "🇮🇷" },
-  { code: "JO", nom: "Jordanie", flag: "🇯🇴" },
-  { code: "IQ", nom: "Irak", flag: "🇮🇶" },
-  { code: "QA", nom: "Qatar", flag: "🇶🇦" },
-  { code: "UZ", nom: "Ouzbékistan", flag: "🇺🇿" },
   { code: "AU", nom: "Australie", flag: "🇦🇺" },
-  { code: "PA", nom: "Panama", flag: "🇵🇦" },
-  { code: "HN", nom: "Honduras", flag: "🇭🇳" },
-  { code: "CR", nom: "Costa Rica", flag: "🇨🇷" },
+  { code: "UZ", nom: "Ouzbékistan", flag: "🇺🇿" },
+  { code: "JO", nom: "Jordanie", flag: "🇯🇴" },
+  { code: "QA", nom: "Qatar", flag: "🇶🇦" },
+  { code: "SA", nom: "Arabie Saoudite", flag: "🇸🇦" },
+  { code: "IQ", nom: "Irak", flag: "🇮🇶" },
+  // OFC
   { code: "NZ", nom: "Nouvelle-Zélande", flag: "🇳🇿" },
-  { code: "CL", nom: "Chili", flag: "🇨🇱" },
 ];
 
 // ── helpers partagés ─────────────────────────────────────────────────────────
@@ -2109,14 +2115,16 @@ export default function AdminPage() {
             const done = cdmSimples.filter(b => b.status !== "PENDING");
             const won = done.filter(b => b.status === "WON").length;
             const pct = done.length > 0 ? Math.round((won / done.length) * 100) : 0;
-            return { won, total: done.length, pct };
+            const profit = parseFloat(done.reduce((acc, b) => acc + (b.status === "WON" ? (b.cote - 1) * b.units : -b.units), 0).toFixed(2));
+            return { won, total: done.length, pct, profit };
           })();
 
           const statsButeurs = (() => {
             const done = cdmButeurs.filter(b => b.status !== "PENDING");
             const won = done.filter(b => b.status === "WON").length;
             const pct = done.length > 0 ? Math.round((won / done.length) * 100) : 0;
-            return { won, total: done.length, pct };
+            const profit = parseFloat(done.reduce((acc, b) => acc + (b.status === "WON" ? (b.cote - 1) * b.units : -b.units), 0).toFixed(2));
+            return { won, total: done.length, pct, profit };
           })();
 
           async function handleAddSimple(e: FormEvent) {
@@ -2213,6 +2221,13 @@ export default function AdminPage() {
                   <p style={{ fontSize: "12px", color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Taux de réussite</p>
                   <p style={{ fontSize: "24px", fontWeight: 800, color: stats.pct >= 60 ? "#16A34A" : stats.pct >= 40 ? "#D97706" : "#DC2626" }}>
                     {stats.pct}%
+                  </p>
+                </div>
+                <div style={{ width: "1px", height: "40px", background: "#E5E7EB" }} />
+                <div>
+                  <p style={{ fontSize: "12px", color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Profit</p>
+                  <p style={{ fontSize: "24px", fontWeight: 800, color: stats.profit > 0 ? "#16A34A" : stats.profit < 0 ? "#DC2626" : "#6B7280" }}>
+                    {stats.profit > 0 ? "+" : ""}{stats.profit.toFixed(2)}u
                   </p>
                 </div>
                 <div style={{ flex: 1, background: "#F3F4F6", borderRadius: "999px", height: "10px", overflow: "hidden" }}>

@@ -27,62 +27,70 @@ interface CdmPariButeur {
 }
 
 const CDM_PAYS: Record<string, { nom: string; flag: string }> = {
+  // CONCACAF
   US: { nom: "États-Unis", flag: "🇺🇸" },
   CA: { nom: "Canada", flag: "🇨🇦" },
   MX: { nom: "Mexique", flag: "🇲🇽" },
+  PA: { nom: "Panama", flag: "🇵🇦" },
+  HT: { nom: "Haïti", flag: "🇭🇹" },
+  CW: { nom: "Curaçao", flag: "🇨🇼" },
+  // CONMEBOL
   AR: { nom: "Argentine", flag: "🇦🇷" },
   BR: { nom: "Brésil", flag: "🇧🇷" },
   CO: { nom: "Colombie", flag: "🇨🇴" },
   EC: { nom: "Équateur", flag: "🇪🇨" },
   UY: { nom: "Uruguay", flag: "🇺🇾" },
-  VE: { nom: "Venezuela", flag: "🇻🇪" },
-  DE: { nom: "Allemagne", flag: "🇩🇪" },
-  ES: { nom: "Espagne", flag: "🇪🇸" },
-  PT: { nom: "Portugal", flag: "🇵🇹" },
+  PY: { nom: "Paraguay", flag: "🇵🇾" },
+  // UEFA
   FR: { nom: "France", flag: "🇫🇷" },
+  ES: { nom: "Espagne", flag: "🇪🇸" },
   EN: { nom: "Angleterre", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  PT: { nom: "Portugal", flag: "🇵🇹" },
+  DE: { nom: "Allemagne", flag: "🇩🇪" },
   NL: { nom: "Pays-Bas", flag: "🇳🇱" },
-  CH: { nom: "Suisse", flag: "🇨🇭" },
-  AT: { nom: "Autriche", flag: "🇦🇹" },
-  DK: { nom: "Danemark", flag: "🇩🇰" },
-  TR: { nom: "Turquie", flag: "🇹🇷" },
   BE: { nom: "Belgique", flag: "🇧🇪" },
   HR: { nom: "Croatie", flag: "🇭🇷" },
-  RS: { nom: "Serbie", flag: "🇷🇸" },
-  SI: { nom: "Slovénie", flag: "🇸🇮" },
+  CH: { nom: "Suisse", flag: "🇨🇭" },
+  AT: { nom: "Autriche", flag: "🇦🇹" },
   SC: { nom: "Écosse", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
-  GR: { nom: "Grèce", flag: "🇬🇷" },
+  NO: { nom: "Norvège", flag: "🇳🇴" },
+  SE: { nom: "Suède", flag: "🇸🇪" },
+  TR: { nom: "Turquie", flag: "🇹🇷" },
+  CZ: { nom: "Tchéquie", flag: "🇨🇿" },
+  BA: { nom: "Bosnie-Herzégovine", flag: "🇧🇦" },
+  // CAF
   MA: { nom: "Maroc", flag: "🇲🇦" },
-  NG: { nom: "Nigeria", flag: "🇳🇬" },
   SN: { nom: "Sénégal", flag: "🇸🇳" },
   EG: { nom: "Égypte", flag: "🇪🇬" },
-  ZA: { nom: "Afrique du Sud", flag: "🇿🇦" },
-  CM: { nom: "Cameroun", flag: "🇨🇲" },
-  CD: { nom: "RD Congo", flag: "🇨🇩" },
-  GH: { nom: "Ghana", flag: "🇬🇭" },
+  TN: { nom: "Tunisie", flag: "🇹🇳" },
   DZ: { nom: "Algérie", flag: "🇩🇿" },
+  ZA: { nom: "Afrique du Sud", flag: "🇿🇦" },
   CI: { nom: "Côte d'Ivoire", flag: "🇨🇮" },
+  GH: { nom: "Ghana", flag: "🇬🇭" },
+  CV: { nom: "Cap-Vert", flag: "🇨🇻" },
+  CD: { nom: "RD Congo", flag: "🇨🇩" },
+  // AFC
   JP: { nom: "Japon", flag: "🇯🇵" },
   KR: { nom: "Corée du Sud", flag: "🇰🇷" },
   IR: { nom: "Iran", flag: "🇮🇷" },
-  JO: { nom: "Jordanie", flag: "🇯🇴" },
-  IQ: { nom: "Irak", flag: "🇮🇶" },
-  QA: { nom: "Qatar", flag: "🇶🇦" },
-  UZ: { nom: "Ouzbékistan", flag: "🇺🇿" },
   AU: { nom: "Australie", flag: "🇦🇺" },
-  PA: { nom: "Panama", flag: "🇵🇦" },
-  HN: { nom: "Honduras", flag: "🇭🇳" },
-  CR: { nom: "Costa Rica", flag: "🇨🇷" },
+  UZ: { nom: "Ouzbékistan", flag: "🇺🇿" },
+  JO: { nom: "Jordanie", flag: "🇯🇴" },
+  QA: { nom: "Qatar", flag: "🇶🇦" },
+  SA: { nom: "Arabie Saoudite", flag: "🇸🇦" },
+  IQ: { nom: "Irak", flag: "🇮🇶" },
+  // OFC
   NZ: { nom: "Nouvelle-Zélande", flag: "🇳🇿" },
-  CL: { nom: "Chili", flag: "🇨🇱" },
 };
 
 function flagOf(code: string) { return CDM_PAYS[code]?.flag ?? "🏳"; }
 function nomOf(code: string) { return CDM_PAYS[code]?.nom ?? code; }
 
-function StatsBadge({ won, total }: { won: number; total: number }) {
+function StatsBadge({ won, total, profit }: { won: number; total: number; profit: number }) {
   const pct = total > 0 ? Math.round((won / total) * 100) : 0;
   const color = pct >= 60 ? "#16A34A" : pct >= 40 ? "#D97706" : total === 0 ? "#6B7280" : "#DC2626";
+  const profitColor = profit > 0 ? "#16A34A" : profit < 0 ? "#DC2626" : "#6B7280";
+  const profitStr = `${profit > 0 ? "+" : ""}${profit.toFixed(2)}u`;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "20px", background: "white", border: "1.5px solid #E5E7EB", borderRadius: "16px", padding: "18px 24px" }}>
       <div>
@@ -93,6 +101,11 @@ function StatsBadge({ won, total }: { won: number; total: number }) {
       <div>
         <p style={{ fontSize: "11px", color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Taux de réussite</p>
         <p style={{ fontSize: "28px", fontWeight: 800, color, lineHeight: 1 }}>{pct}%</p>
+      </div>
+      <div style={{ width: "1px", height: "44px", background: "#E5E7EB" }} />
+      <div>
+        <p style={{ fontSize: "11px", color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Profit</p>
+        <p style={{ fontSize: "28px", fontWeight: 800, color: profitColor, lineHeight: 1 }}>{profitStr}</p>
       </div>
       <div style={{ flex: 1, background: "#F3F4F6", borderRadius: "999px", height: "8px", overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", borderRadius: "999px", background: color, transition: "width 0.5s" }} />
@@ -149,12 +162,16 @@ export default function Cdm2026Page() {
 
   const statsSimples = (() => {
     const done = simples.filter(b => b.status !== "PENDING");
-    return { won: done.filter(b => b.status === "WON").length, total: done.length };
+    const won = done.filter(b => b.status === "WON").length;
+    const profit = parseFloat(done.reduce((acc, b) => acc + (b.status === "WON" ? (b.cote - 1) * b.units : -b.units), 0).toFixed(2));
+    return { won, total: done.length, profit };
   })();
 
   const statsButeurs = (() => {
     const done = buteurs.filter(b => b.status !== "PENDING");
-    return { won: done.filter(b => b.status === "WON").length, total: done.length };
+    const won = done.filter(b => b.status === "WON").length;
+    const profit = parseFloat(done.reduce((acc, b) => acc + (b.status === "WON" ? (b.cote - 1) * b.units : -b.units), 0).toFixed(2));
+    return { won, total: done.length, profit };
   })();
 
   return (
@@ -208,7 +225,11 @@ export default function Cdm2026Page() {
 
         {/* Stats */}
         <div style={{ marginBottom: "24px" }}>
-          <StatsBadge won={tab === "simples" ? statsSimples.won : statsButeurs.won} total={tab === "simples" ? statsSimples.total : statsButeurs.total} />
+          <StatsBadge
+            won={tab === "simples" ? statsSimples.won : statsButeurs.won}
+            total={tab === "simples" ? statsSimples.total : statsButeurs.total}
+            profit={tab === "simples" ? statsSimples.profit : statsButeurs.profit}
+          />
         </div>
 
         {/* List */}
